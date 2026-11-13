@@ -43,3 +43,8 @@ next-env.d.ts
 
 # dsh acl backups/rollback artifacts
 .dsh-acl/
+HANDOFF*.md
+*.bak
+PROJECT_SOURCE_DUMP.md
+discovery-*.md
+.automation-backups/
