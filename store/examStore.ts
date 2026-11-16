@@ -9,6 +9,9 @@ import { deadlineTimerStart, deadlineTimerPause, deadlineTimerResume, deadlineTi
 import { uuidv4 } from '@/lib/uuid';
 import { getLockstepCount, getSlideCount } from '@/lib/lockstep';
 import { sanitizeExamConfig, sanitizeExamMeta } from '@/lib/validate';
+import { isFirebaseConfigured } from '@/lib/firebase';
+import { signInWithGoogle, signOut as signOutAuth, subscribeToAuth } from '@/lib/auth';
+import { getAdapter } from '@/lib/persistence';
 
 const STORAGE_VERSION = 1;
 const STORAGE_KEY = 'mcq-projector-storage';
@@ -73,9 +76,15 @@ export type ExamStoreState = PersistedState & {
   config: ExamConfig;
   showShortcuts: boolean;
   blankScreen: boolean;
+  // Cloud/sync state (never persisted — derived at runtime).
+  cloudUser: import('@/lib/auth').AuthUser | null;
+  cloudStatus: 'signed-out' | 'idle' | 'syncing' | 'error';
+  cloudError: string | null;
+  cloudPapers: import('@/types').CloudPaperMeta[];
+  cloudConfigured: boolean;
 };
 
-function createInitialState(): PersistedState & { prefs: DisplayPrefs; config: ExamConfig; showShortcuts: boolean; blankScreen: boolean } {
+function createInitialState(): PersistedState & { prefs: DisplayPrefs; config: ExamConfig; showShortcuts: boolean; blankScreen: boolean; cloudUser: import('@/lib/auth').AuthUser | null; cloudStatus: 'signed-out' | 'idle' | 'syncing' | 'error'; cloudError: string | null; cloudPapers: import('@/types').CloudPaperMeta[]; cloudConfigured: boolean } {
   return {
     savedAt: Date.now(),
     // Exam metadata is optional for a one-off projector run, so the app opens
@@ -88,6 +97,11 @@ function createInitialState(): PersistedState & { prefs: DisplayPrefs; config: E
     config: initialDraft.config,
     showShortcuts: false,
     blankScreen: false,
+    cloudUser: null,
+    cloudStatus: 'signed-out',
+    cloudError: null,
+    cloudPapers: [],
+    cloudConfigured: false,
   };
 }
 
@@ -153,11 +167,13 @@ type PersistenceSlice = {
 };
 
 type CloudSlice = {
+  initCloud: () => void;
   signIn: () => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
   syncSettings: () => Promise<void>;
-  savePaper: (name: string) => Promise<void>;
+  savePaper: (name?: string) => Promise<void>;
   loadPaper: (id: string) => Promise<void>;
+  deletePaper: (id: string) => Promise<void>;
   refreshPaperList: () => Promise<void>;
 };
 
@@ -634,12 +650,119 @@ selectActiveSet: (index) => set(state => ({
         }
       },
 
-      signIn: async () => {},
-      signOut: () => {},
-      syncSettings: async () => {},
-      savePaper: async () => {},
-      loadPaper: async () => {},
-      refreshPaperList: async () => {},
+      initCloud: () => {
+        if (typeof window === 'undefined') return;
+        const configured = isFirebaseConfigured();
+        set({ cloudConfigured: configured });
+        if (!configured) return;
+        subscribeToAuth(user => {
+          set({
+            cloudUser: user,
+            cloudStatus: user ? 'idle' : 'signed-out',
+            cloudError: null,
+          });
+          if (user) void get().refreshPaperList();
+        });
+      },
+
+      signIn: async () => {
+        set({ cloudStatus: 'syncing', cloudError: null });
+        const result = await signInWithGoogle();
+        if (result.ok) {
+          set({ cloudUser: result.user, cloudStatus: 'idle', cloudError: null });
+          await get().refreshPaperList();
+        } else {
+          set({ cloudStatus: 'error', cloudError: result.message, cloudConfigured: isFirebaseConfigured() });
+        }
+      },
+
+      signOut: async () => {
+        await signOutAuth();
+        set({ cloudUser: null, cloudStatus: 'signed-out', cloudError: null, cloudPapers: [] });
+      },
+
+      syncSettings: async () => {
+        const { cloudUser } = get();
+        if (!cloudUser) return;
+        set({ cloudStatus: 'syncing', cloudError: null });
+        try {
+          const { draft } = get();
+          const adapter = getAdapter(cloudUser.uid);
+          await adapter.saveSettings({ meta: draft.meta, config: draft.config, updatedAt: Date.now() });
+          set({ cloudStatus: 'idle' });
+        } catch (error) {
+          set({ cloudStatus: 'error', cloudError: (error as Error).message || 'Could not sync settings.' });
+        }
+      },
+
+      savePaper: async (name?: string) => {
+        const { cloudUser, draft, exam } = get();
+        if (!cloudUser) {
+          throw new Error('Sign in to save papers to the cloud.');
+        }
+        set({ cloudStatus: 'syncing', cloudError: null });
+        try {
+          const adapter = getAdapter(cloudUser.uid);
+          const payload = {
+            draft: name ? { ...draft, meta: { ...draft.meta, examName: name } } : draft,
+            sectionB: exam?.sectionB ?? [],
+            sectionC: exam?.sectionC ?? [],
+            seed: exam?.config.seed ?? draft.config.seed,
+          };
+          await adapter.savePaper(payload);
+          await get().refreshPaperList();
+          set({ cloudStatus: 'idle' });
+        } catch (error) {
+          set({ cloudStatus: 'error', cloudError: (error as Error).message || 'Could not save paper.' });
+          throw error;
+        }
+      },
+
+      loadPaper: async (id: string) => {
+        const { cloudUser } = get();
+        if (!cloudUser) return;
+        set({ cloudStatus: 'syncing', cloudError: null });
+        try {
+          const adapter = getAdapter(cloudUser.uid);
+          const payload = await adapter.loadPaper(id);
+          if (!payload) {
+            set({ cloudStatus: 'error', cloudError: 'That paper could not be found.' });
+            return;
+          }
+          set({
+            draft: payload.draft,
+            config: payload.draft.config,
+            screen: 'setup',
+            cloudStatus: 'idle',
+          });
+        } catch (error) {
+          set({ cloudStatus: 'error', cloudError: (error as Error).message || 'Could not load paper.' });
+        }
+      },
+
+      deletePaper: async (id: string) => {
+        const { cloudUser } = get();
+        if (!cloudUser) return;
+        try {
+          const adapter = getAdapter(cloudUser.uid);
+          await adapter.deletePaper(id);
+          await get().refreshPaperList();
+        } catch (error) {
+          set({ cloudStatus: 'error', cloudError: (error as Error).message || 'Could not delete paper.' });
+        }
+      },
+
+      refreshPaperList: async () => {
+        const { cloudUser } = get();
+        if (!cloudUser) return;
+        try {
+          const adapter = getAdapter(cloudUser.uid);
+          const papers = await adapter.listPapers();
+          set({ cloudPapers: papers });
+        } catch {
+          // Listing is best-effort; keep whatever we had.
+        }
+      },
     }),
     {
       name: STORAGE_KEY,

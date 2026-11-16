@@ -16,7 +16,10 @@
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
     "e2e": "playwright test",
     "e2e:visual": "playwright test --grep @visual",
-    "postbuild": "npm run build:sw"
+    "postbuild": "npm run build:sw",
+    "deploy:rules": "firebase deploy --only firestore:rules,firestore:indexes",
+    "deploy:hosting": "npm run build && firebase deploy --only hosting",
+    "deploy": "npm run build && firebase deploy --only hosting,firestore:rules,firestore:indexes"
   },
   "engines": {
     "node": ">=20.9.0"
@@ -24,6 +27,7 @@
   "packageManager": "npm@11.9.0",
   "dependencies": {
     "fflate": "^0.8.3",
+    "firebase": "^12.19.0",
     "next": "^16.4.6",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.3.1",

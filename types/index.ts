@@ -167,6 +167,31 @@ export interface GoogleSession {
   email: string;
 }
 
+/** Cloud-saved paper metadata (users/{uid}/papers/{paperId}). */
+export interface CloudPaperMeta {
+  id: string;
+  ownerUid: string;
+  title: string;
+  subject: string;
+  examName: string;
+  quizNumber: number;
+  schemaVersion: number;
+  /** Number of chunk documents holding the payload (1 MiB doc limit). */
+  chunkCount: number;
+  /** Approximate payload size in bytes, for display and guarding. */
+  sizeBytes: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** A paper's payload split across chunk docs to stay under the 1 MiB limit. */
+export interface CloudPaperPayload {
+  draft: DraftInput;
+  sectionB: PaperQuestion[];
+  sectionC: PaperQuestion[];
+  seed: string;
+}
+
 export interface CloudSettings {
   meta: ExamMeta;
   config: ExamConfig;

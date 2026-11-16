@@ -1,0 +1,69 @@
+rules_version = '2';
+
+// Spark-plan security model.
+//
+// Deny everything by default. A signed-in teacher may read/write ONLY their
+// own subtree (users/{uid}/**). Every stored document must carry an ownerUid
+// equal to the path uid, and field types/sizes are bounded so a single write
+// can never exceed Firestore's 1 MiB limit or abuse the free tier.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // users/{uid}: profile + settings blob. The blob is validated loosely
+    // (object, bounded) because meta/config shapes evolve across versions.
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+
+      allow create, update: if isOwner(uid)
+        && request.resource.data.ownerUid == uid
+        && request.resource.data.updatedAt is int
+        && request.resource.data.settings is map
+        && request.resource.data.settings.size() <= 50;
+
+      match /papers/{paperId} {
+        allow read, delete: if isOwner(uid);
+
+        allow create, update: if isOwner(uid)
+          && request.resource.data.ownerUid == uid
+          && request.resource.data.id == paperId
+          && request.resource.data.title is string
+          && request.resource.data.title.size() > 0
+          && request.resource.data.title.size() <= 300
+          && request.resource.data.chunkCount is int
+          && request.resource.data.chunkCount >= 1
+          && request.resource.data.chunkCount <= 100
+          && request.resource.data.sizeBytes is int
+          && request.resource.data.sizeBytes >= 0
+          && request.resource.data.sizeBytes <= 4000000
+          && request.resource.data.schemaVersion is int
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int;
+
+        match /chunks/{chunkId} {
+          allow read, delete: if isOwner(uid);
+
+          allow create, update: if isOwner(uid)
+            && request.resource.data.index is int
+            && request.resource.data.index >= 0
+            && request.resource.data.index <= 99
+            && request.resource.data.data is string
+            && request.resource.data.data.size() <= 900000;
+        }
+      }
+    }
+
+    // Everything not matched above is denied.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

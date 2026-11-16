@@ -16,6 +16,7 @@ import { useConfirm } from '@/components/ConfirmDialog/ConfirmDialog';
 import { NumberInput } from '@/components/NumberInput/NumberInput';
 import { ImportSummary } from '@/components/screens/SetupScreen/ImportSummary';
 import { RestorePanel } from '@/components/screens/SetupScreen/RestorePanel';
+import { CloudAccount } from '@/components/CloudAccount/CloudAccount';
 import {
   ACCEPTED_QUESTION_FILE_TYPES,
   FileImportError,
@@ -301,6 +302,7 @@ export function SetupScreen() {
 </header>
 
       <RestorePanel />
+      <CloudAccount />
 
 {showPasteBox && (
       <div className="card mb-4">

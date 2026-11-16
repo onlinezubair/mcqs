@@ -58,7 +58,85 @@ Copy `.env.example` to `.env.local` when needed.
 
 ## Data & privacy
 
-Everything is local-first: exam input, generated sets, progress and preferences are stored in `localStorage` (falling back to IndexedDB for large payloads). Google Drive sync is optional and only enabled when a client ID is configured. The Google token is kept in memory and `sessionStorage` only.
+Everything is local-first: exam input, generated sets, progress and preferences are stored in `localStorage` (falling back to IndexedDB for large payloads). Cloud sync is optional (Google sign-in via Firebase) and only enabled when the Firebase environment variables are configured. **Students never sign in**, and no student personal data is stored.
+
+## Cloud sign-in and per-teacher storage (optional)
+
+When Firebase is configured, the teacher can sign in with Google from the Setup screen ("Cloud" panel) or the Metadata screen. Signed-in teachers get:
+
+- Their own **settings** synced to Firestore (`users/{uid}`).
+- A **paper library** stored under `users/{uid}/papers/{paperId}` — save, list, open, and delete.
+
+Sign-in is never required: the auth screen offers **Continue without signing in**, and the whole exam flow works offline from local storage. See [SECURITY.md](SECURITY.md) for the data model and rules.
+
+Answer keys are only ever readable by the owning teacher (Firestore rules + no student-facing answer loading).
+
+## Firebase setup (Spark free plan)
+
+1. In the [Firebase console](https://console.firebase.google.com/project/mcqs-exam/overview) open project **mcqs-exam**.
+2. **Build → Authentication → Get started → Sign-in method → Google → Enable**, set a support email.
+3. **Authentication → Settings → Authorized domains**: `localhost`, `mcqs-exam.web.app`, `mcqs-exam.firebaseapp.com`.
+4. **Build → Firestore Database → Create database → Native mode**, region `asia-south1` (Mumbai).
+5. **Project settings → Your apps → Web app**: copy the config values into `.env.local` (see `.env.example`).
+6. Deploy rules and app:
+   ```bash
+   npm run deploy:rules
+   npm run deploy:hosting
+   ```
+
+Nothing here requires billing. The project must stay on the **Spark (no-cost)** plan — no Cloud Functions, no Cloud Storage buckets.
+
+## Free-tier limits and usage
+
+Designed to stay inside the Spark plan:
+
+| Resource | Limit | How the app stays under it |
+|---|---|---|
+| Firestore stored | 1 GiB | Papers are small text; nothing is stored unless the teacher saves |
+| Firestore reads | 50k/day | `getDoc`/`getDocs` only (no realtime listeners); listing reads metadata only |
+| Firestore writes | 20k/day | Sync is manual/debounced; batched writes |
+| Firestore deletes | 20k/day | Batched deletes |
+| Hosting storage | 10 GB | Static export, small bundle |
+| Hosting transfer | ~360 MB/day | Immutable-cached assets + service worker |
+
+If a quota is reached, the cloud action shows a clear error message and the app keeps working from the local cache — running an exam is never blocked.
+
+## Deployment (Firebase Hosting)
+
+```bash
+npm run build            # static export to out/
+npm run deploy:hosting   # firebase deploy --only hosting
+npm run deploy:rules     # deploy firestore.rules + indexes
+npm run deploy           # both
+```
+
+Live URLs: https://mcqs-exam.web.app and https://mcqs-exam.firebaseapp.com
+
+Next.js static export does **not** work over `file://`. To preview locally run `npm run build && npx serve out`.
+
+### CI/CD
+
+`.github/workflows/ci-deploy.yml` runs typecheck, lint, tests, build and Playwright on every push/PR, and deploys to Firebase Hosting on pushes to `main`. It needs these repository settings:
+
+- **Variables** (Settings → Secrets and variables → Actions → Variables): all `NEXT_PUBLIC_FIREBASE_*` values.
+- **Secret**: `FIREBASE_SERVICE_ACCOUNT_MCQS_EXAM` — a minimal-privilege service account JSON for deploying Hosting/rules.
+
+### Environment
+
+Copy `.env.example` to `.env.local` when needed.
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_API_KEY` | For cloud | Firebase web API key (public) |
+| `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN` | For cloud | e.g. `mcqs-exam.firebaseapp.com` |
+| `NEXT_PUBLIC_FIREBASE_PROJECT_ID` | For cloud | `mcqs-exam` |
+| `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` | For cloud | e.g. `mcqs-exam.firebasestorage.app` |
+| `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID` | For cloud | From Firebase web app config |
+| `NEXT_PUBLIC_FIREBASE_APP_ID` | For cloud | From Firebase web app config |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Legacy | Drive sync client ID (not used by Firebase) |
+| `NEXT_PUBLIC_BASE_PATH` | Only for sub-path hosting | e.g. `/mcq-projector` |
+
+All Firebase values are blank in local dev by default, so the app runs fully offline; set them to enable cloud sign-in.
 
 ## Exam input format
 
@@ -123,8 +201,10 @@ Rows in the CSV with no code still appear under their semester, listed by name. 
 
 ## Exports
 
-The end-screen ZIP contains per-set question-paper HTML, Sections B & C HTML, a human-readable `answer-key.csv`, a ZipGrade-compatible `zipgrade-answer-key.csv`, and a `manifest.json`. ZIP filenames are built from `lib/meta.ts` (`buildMetaFileBase`), e.g. `PharmD_Sem4_PHARM412_ClassQuiz3_2026-09-06.zip`.
+The end-screen ZIP contains per-set question-paper HTML, Sections B & C HTML, a human-readable `answer-key.csv`, a ZipGrade-compatible `zipgrade-answer-key.csv`, a `seed.txt` (the shuffle seed plus the set count and strategy that belong to it), a full `locked-exam.json` snapshot, and a `manifest.json`. ZIP filenames are built from `lib/meta.ts` (`buildMetaFileBase`), e.g. `PharmD_Sem4_PHARM412_ClassQuiz3_2026-09-06.zip`.
+
+The same seed always reproduces the same scrambled sets for the same question bank. On the Setup screen, **Restore a saved exam** accepts either the ZIP or just the seed to rebuild exactly what was run before — even after a crash or power cut.
 
 ## Licensing
 
-Third-party dependency licenses are unchanged; this project is internal.
+MIT — see [LICENSE](LICENSE). Students never need to sign in.

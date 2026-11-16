@@ -17,6 +17,7 @@ import { useBeforeUnloadGuard } from '@/hooks/useBeforeUnloadGuard';
 import { useTabLock } from '@/hooks/useTabLock';
 import { useServiceWorker } from '@/hooks/useServiceWorker';
 import { useClockGuard } from '@/hooks/useClockGuard';
+import { AuthGate } from '@/components/AuthGate/AuthGate';
 
 const RESUMABLE_SCREENS = new Set(['exam', 'paperIntro', 'paper']);
 
@@ -28,6 +29,7 @@ function AppShell() {
   const screen = useExamStore(s => s.screen);
   const hydrate = useExamStore(s => s.hydrate);
   const resetStore = useExamStore(s => s.resetStore);
+  const initCloud = useExamStore(s => s.initCloud);
   const [showResumeDialog, setShowResumeDialog] = useState(false);
   const hydratedRef = useRef(false);
 
@@ -52,8 +54,9 @@ function AppShell() {
     }
 
     hydrate();
+    initCloud();
     if (hadSavedExam) setShowResumeDialog(true);
-  }, [hydrate]);
+  }, [hydrate, initCloud]);
 
   const screens = {
     meta: <MetaScreen />,
@@ -86,7 +89,7 @@ function AppShell() {
             : { paddingTop: '1rem', paddingBottom: '2rem', minHeight: '100vh' }
         }
       >
-        {screens[screen] ?? null}
+        <AuthGate>{screens[screen] ?? null}</AuthGate>
       </main>
     </>
   );

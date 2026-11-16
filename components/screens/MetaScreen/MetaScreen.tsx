@@ -12,7 +12,7 @@ import {
   sortedByCode,
   type CourseMatch,
 } from '@/lib/courses';
-import { CloudAuthWidget } from '@/components/CloudAuthWidget/CloudAuthWidget';
+import { CloudAccount } from '@/components/CloudAccount/CloudAccount';
 import { useConfirm } from '@/components/ConfirmDialog/ConfirmDialog';
 import { NumberInput } from '@/components/NumberInput/NumberInput';
 import { EXAM_NAMES, SUBJECT_MODES } from '@/lib/validate';
@@ -115,7 +115,7 @@ export function MetaScreen() {
         Configure exam metadata
       </p>
 
-      <CloudAuthWidget />
+      <CloudAccount />
 
       <div className="card" style={{ marginBottom: '1.5rem' }}>
         <h2 className="mb-4">Exam Metadata</h2>
