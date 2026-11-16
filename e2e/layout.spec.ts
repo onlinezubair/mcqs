@@ -8,7 +8,7 @@ test.describe('exam slide layout', () => {
     await page.getByRole('button', { name: /Calibrate/ }).click();
     await page.getByRole('button', { name: /Start Exam/ }).click();
 
-    await expect(page.getByText(/Question 1 of/)).toBeVisible();
+    await expect(page.getByText(/Slide 1 of/)).toBeVisible();
 
     // Defaults create 4 sets (A-D), so 4 columns should be rendered.
     const headings = page.getByText(/^Set [A-Z]$/);

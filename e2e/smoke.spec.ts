@@ -58,10 +58,10 @@ test.describe('MCQ Projector smoke', () => {
     await page.getByRole('button', { name: /Build/ }).click();
     await page.getByRole('button', { name: /Calibrate/ }).click();
 
-    await expect(page.getByRole('heading', { name: 'Calibrate' })).toBeVisible();
+    await expect(page.getByText(/Calibration Preview/)).toBeVisible();
     await page.getByRole('button', { name: /Start Exam/ }).click();
 
-    await expect(page.getByText(/Question 1 of/)).toBeVisible();
+    await expect(page.getByText(/Slide 1 of/)).toBeVisible();
   });
 
   test('question slide never leaks the answer text in the DOM', async ({ page }) => {
@@ -71,7 +71,7 @@ test.describe('MCQ Projector smoke', () => {
     await page.getByRole('button', { name: /Calibrate/ }).click();
     await page.getByRole('button', { name: /Start Exam/ }).click();
 
-    await expect(page.getByText(/Question 1 of/)).toBeVisible();
+    await expect(page.getByText(/Slide 1 of/)).toBeVisible();
     const content = await page.content();
     expect(content).not.toContain('Correct');
     expect(content).not.toContain('Answer:');

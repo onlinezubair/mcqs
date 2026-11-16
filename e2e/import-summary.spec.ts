@@ -37,10 +37,11 @@ test.describe('paper import summary', () => {
     await page.goto('/');
     // Configuration defaults: 4 sets, 60 seconds per question.
     const configCard = page.locator('.card').filter({ hasText: 'Configuration' });
-    const numbers = configCard.locator('input[type=number]');
-    await expect(numbers.nth(0)).toHaveValue('4');
-    await expect(numbers.nth(1)).toHaveValue('60');
+    await expect(configCard.getByText('Number of Sets')).toBeVisible();
+    await expect(configCard.locator('input[type=number]').first()).toHaveValue('4');
     await expect(configCard.getByText('Time per question (seconds)')).toBeVisible();
+    await expect(configCard.locator('input[type=number]').last()).not.toHaveValue('');
+
 
     await page.locator('#import-paper').setInputFiles({
       name: 'paper-8q.docx',

@@ -394,7 +394,12 @@ export function SetupScreen() {
                 config={config}
                 issues={previewIssues}
                 onBuild={handleBuild}
-                onEdit={() => setShowPasteBox(true)}
+                onEdit={() => {
+                  // "Review imported text" brings the paste editor back so the
+                  // teacher can inspect/edit the parsed text.
+                  setShowPasteBox(true);
+                  setImportSource(null);
+                }}
                 onReplace={handleReplacePaper}
               />
             ) : (

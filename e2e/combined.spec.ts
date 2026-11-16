@@ -15,15 +15,15 @@ async function startSampleRun(page: import('@playwright/test').Page) {
   await buildSampleExam(page);
   await page.getByRole('button', { name: /Calibrate/ }).click();
   await page.getByRole('button', { name: /Start Exam/ }).click();
-  await expect(page.getByText(/Question 1 of/)).toBeVisible();
+  await expect(page.getByText(/Slide 1 of/)).toBeVisible();
 }
 
 test.describe('combined exam flow', () => {
   test('review screen shows Section B and C from the sample', async ({ page }) => {
     await buildSampleExam(page);
     await expect(page.getByRole('heading', { name: 'Review Exam' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Section B \(Descriptive\)/ })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Section C \(Case Study\)/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Section B \(Short Questions\)/ })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Section C \(Long Questions\)/ })).toBeVisible();
   });
 
   test('advancing past the last MCQ shows the Section B & C intro', async ({ page }) => {
