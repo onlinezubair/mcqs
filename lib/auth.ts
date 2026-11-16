@@ -58,6 +58,9 @@ export async function signInWithGoogle(): Promise<SignInResult> {
     if (code === 'auth/unauthorized-domain') {
       return { ok: false, reason: 'unauthorized-domain', message: 'This domain is not authorised for sign-in in Firebase. Add it under Authentication → Settings → Authorized domains.' };
     }
+    if (code === 'auth/operation-not-allowed') {
+      return { ok: false, reason: 'not-configured', message: 'Google sign-in is not switched on for this Firebase project yet. Enable it under Authentication → Sign-in method → Google. You can still use the app offline meanwhile.' };
+    }
     if (code === 'auth/network-request-failed' || (typeof navigator !== 'undefined' && !navigator.onLine)) {
       return { ok: false, reason: 'offline', message: 'You appear to be offline. The app works offline; sign in later to sync.' };
     }

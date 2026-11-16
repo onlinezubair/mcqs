@@ -65,6 +65,15 @@ describe('auth helpers', () => {
     expect(result.reason).toBe('unauthorized-domain');
   });
 
+  it('explains when the Google provider is not enabled yet', async () => {
+    mockGetFirebase.mockReturnValue({ auth: {}, db: {}, app: {} });
+    mockSignInWithPopup.mockRejectedValue({ code: 'auth/operation-not-allowed' });
+    const result = await signInWithGoogle();
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toMatch(/Sign-in method/i);
+  });
+
   it('signOut is a no-op when Firebase is unavailable', async () => {
     mockGetFirebase.mockReturnValue(null);
     await expect(signOut()).resolves.toBeUndefined();
