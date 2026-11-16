@@ -9,76 +9,36 @@ already done or is a short manual step.
 |---|---|
 | Code in a public GitHub repo with MIT licence | ✅ Done |
 | App builds, lints, and all tests pass | ✅ Done |
-| Google sign-in + per-teacher cloud storage code | ✅ Done (needs Firebase keys to switch on) |
-| Security rules written | ✅ Done (needs deploying) |
+| Google sign-in + per-teacher cloud storage code | ✅ Done |
+| Firebase project, Web App, Firestore database (asia-south1) | ✅ Done |
+| Security rules deployed | ✅ Done |
+| Site deployed live | ✅ https://mcqs-exam.web.app |
 | CI pipeline (test on every push, deploy on `main`) | ✅ Done (needs 2 GitHub settings) |
-| Firebase CLI sign-in | ⏳ Needs you (browser step) |
-| Firestore database + web app keys | ⏳ Needs you (console) |
-| Rules + site deployed and live | ⏳ After the two steps above |
+| Google sign-in provider enabled | ⏳ Needs one console click (step 1) |
 
 ## Repo and URLs
 
 - GitHub: https://github.com/onlinezubair/mcqs (public, MIT)
-- Live site (after deploy): https://mcqs-exam.web.app and https://mcqs-exam.firebaseapp.com
+- Live site: https://mcqs-exam.web.app and https://mcqs-exam.firebaseapp.com
 - Firebase project: `mcqs-exam` (Spark / free plan — never add billing)
 
-## What you must do (short list)
+## What you must do (one short step)
 
-### 1. Sign the Firebase command-line tool in to your Google account
-PowerShell, in the project folder:
+### 1. Turn on Google sign-in (Firebase console, one-time)
 
-```powershell
-cd "D:\Exam App V3"
-firebase login --reauth
-```
+Open https://console.firebase.google.com/project/mcqs-exam/authentication and:
 
-A browser window opens. Choose **onlinedrzubair@gmail.com** (the account that
-owns the Firebase project), click **Allow**. You should see in the terminal:
-`✔ Success! Logged in as onlinedrzubair@gmail.com`.
+1. Click **Get started** (this initialises the free Authentication service).
+2. On the **Sign-in method** tab, click **Google**.
+3. Toggle **Enable**, choose a **support email**, click **Save**.
+4. Open the **Settings** tab → **Authorized domains** and confirm these are
+   listed (add any missing with **Add domain**): `localhost`,
+   `mcqs-exam.web.app`, `mcqs-exam.firebaseapp.com`.
 
-### 2. Turn on Google sign-in and the database (Firebase console)
-Open https://console.firebase.google.com/project/mcqs-exam/overview and:
+That is the only remaining manual step. Everything else is deployed.
 
-1. Left menu **Build → Authentication → Get started**.
-2. **Sign-in method** tab → click **Google** → toggle **Enable** → pick a
-   **support email** → **Save**.
-3. **Settings** tab → **Authorized domains**: make sure these three are listed
-   (add any missing with **Add domain**): `localhost`, `mcqs-exam.web.app`,
-   `mcqs-exam.firebaseapp.com`.
-4. Left menu **Build → Firestore Database → Create database** → choose
-   **Native mode** → location **asia-south1 (Mumbai)** → **Create**.
-   (Location cannot be changed later.)
-5. Click the **gear icon → Project settings → Your apps**. If there is no web
-   app, click **</>** (Web), nickname it `mcqs`, **Register app**. Copy the
-   `firebaseConfig` values shown.
-
-### 3. Paste the keys into the app
-Create a file named `.env.local` in `D:\Exam App V3` with these six lines
-(values come from step 2.5; this file is private and never uploaded):
-
-```
-NEXT_PUBLIC_FIREBASE_API_KEY=...
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=mcqs-exam.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=mcqs-exam
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
-NEXT_PUBLIC_FIREBASE_APP_ID=...
-```
-
-### 4. Deploy (one command)
-```powershell
-npm run deploy
-```
-This builds the app and uploads the site + security rules. When it finishes it
-prints `Hosting URL: https://mcqs-exam.web.app`.
-
-### 5. (Optional) Let GitHub deploy automatically
-In GitHub → repo **mcqs** → **Settings → Secrets and variables → Actions**:
-
-- **Variables** tab: add each `NEXT_PUBLIC_FIREBASE_*` name with the same values
-  as `.env.local` (six variables).
-- **Secrets** tab: add `FIREBASE_SERVICE_ACCOUNT_MCQS_EXAM` — ask me and I will
-  generate a minimal-permission service account JSON for you to paste there.
+After that, open https://mcqs-exam.web.app — you will see **Sign in with Google**
+and **Continue without signing in**.
 
 ## What the app does
 
@@ -114,15 +74,29 @@ billing account.
   Authentication → Settings → Authorized domains.
 - **App shows "Cloud" as "Local only"** → the `.env.local` keys are missing or
   the site was built before they were added; run `npm run deploy` again.
+- **Sign-in button does nothing / "operation-not-allowed"** → the Google
+  provider is not enabled yet; do step 1 above.
 - **Exam must run but there is no internet** → on the sign-in screen choose
   **Continue without signing in**; everything works offline.
 
 ## Developer commands
 
 ```bash
-npm run dev          # local development
-npm run verify       # typecheck + lint + tests + build
-npm run deploy:rules # deploy Firestore security rules
-npm run deploy:hosting
-npm run deploy       # both
+npm run dev            # local development
+npm run verify         # typecheck + lint + tests + build
+npm run deploy:rules   # deploy Firestore security rules
+npm run deploy:hosting # build + deploy the site
+npm run deploy         # both
 ```
+
+## Notes
+
+- The Firebase web config lives in `.env.local` (private, git-ignored). It is
+  already filled in on this machine.
+- Firestore rules and the live site are already deployed. Re-run
+  `npm run deploy` after any code change.
+- CI auto-deploy (optional): in GitHub → repo **Settings → Secrets and
+  variables → Actions**, add the six `NEXT_PUBLIC_FIREBASE_*` values as
+  **Variables** and a `FIREBASE_SERVICE_ACCOUNT_MCQS_EXAM` **Secret**. Ask me to
+  generate that service account JSON when you want it.
+
