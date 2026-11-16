@@ -1,0 +1,84 @@
+ROLE
+You are my implementation engineer. I am not technical. Take my existing Next.js + TypeScript project, publish it to GitHub, and add Google sign-in, per-user online storage and hosting using Firebase on the free Spark plan. Do all of it end to end and leave nothing half-done. Do everything you can yourself (git, npm, Firebase CLI, gh CLI if installed). Ask me to act only where something truly cannot be automated, and give those steps as a short numbered list in plain language, with exact button names and what I should see on screen.
+
+FILL-IN VALUES
+- Project folder: <PROJECT_FOLDER_PATH>
+- Copyright holder name for LICENSE: <NAME>
+- Google account that owns the Firebase project: <onlinedrzubair@gmail.com>
+- GitHub repo: https://github.com/onlinezubair/mcqs (already created by me: public, MIT license, name "mcqs")
+- Firebase project: ALREADY CREATED by me in the Firebase console. Project ID: mcqs-exam (display name "mcqs"). Console: https://console.firebase.google.com/project/mcqs-exam/overview
+- Expected live URLs: https://mcqs-exam.web.app and https://mcqs-exam.firebaseapp.com
+
+PROJECT CONTEXT
+- Classroom MCQ exam app for projector display: randomized question-paper sets, answer keys, anti-cheating purpose. Stack: Next.js App Router, TypeScript, Zustand, CSS Modules, static export (output: 'export'), Vitest.
+- The teacher runs the exam; students do not sign in. Teachers sign in with Google and keep their own question papers and settings online.
+- The app must stay free to use and fully functional on free tiers. Never require billing.
+- If HANDOFF.md or automation-log.md exist at the project root, keep them updated as you work.
+
+HARD CONSTRAINTS (Spark plan)
+- Do not enable or upgrade to Blaze. Do not attach a billing account. Do not add Cloud Functions, Cloud Storage buckets, or anything that needs billing. Storage now requires Blaze, so store everything in Firestore.
+- Respect the Spark limits: Firestore 1 GiB stored, 50k reads, 20k writes and 20k deletes per day; Hosting 10 GB stored and about 360 MB transfer per day. Stay well inside them: cache locally, fetch with getDoc/getDocs instead of broad realtime listeners, batch writes, debounce autosave.
+- A Firestore document is capped at 1 MiB. Design the data model so a large paper never exceeds it (for example a paper metadata doc plus a questions subcollection or chunked docs). If the app embeds images, compress them, enforce a size limit, and warn the user clearly.
+- Answer keys are only ever readable by the owning teacher. Student-facing views must never load answer keys.
+
+WORKING STYLE
+- Work in small logical phases. After each phase, verify it, then report a short status in plain language. Make every step idempotent and safe to re-run.
+- Windows with PowerShell 7 (pwsh). If you cannot run commands yourself, give me paste-ready pwsh scripts, one logical step each, that end with a green "AI Feedback Summary" containing only what you need back from me.
+- Prefer the approach that maximizes automation, minimizes maintenance and manual work, and stays easy to understand.
+- Never perform destructive actions (force push, deleting data, deleting or recreating the Firebase project) without telling me first and getting a yes. Never commit secrets.
+- Do not create a mess: no stray files, no duplicate folders, no leftover test data, no unused dependencies. Keep the structure clean and documented.
+
+PHASE 1: REPO HYGIENE (local)
+1. cd to the project folder. Verify Node, npm, git, and (if present) gh are installed. Report anything missing and install what you can.
+2. Make sure the project has a proper .gitignore: node_modules, .next, out, .env*, !.env.example, *.log, OS/editor junk, Firebase debug logs, any service-account JSON, coverage, local data or model files.
+3. Scan the project (excluding ignored paths) for: files over 100 MB, hard-coded API keys/tokens/passwords, real exam question banks or answer keys that should not be public. List findings and fix or exclude them. Ask me only if a file is ambiguous.
+4. Make sure LICENSE exists with the standard MIT text: "Copyright (c) 2026 <NAME>". If the remote already has a LICENSE from GitHub, keep a single MIT LICENSE.
+5. Add or update README.md: what the app is, features, local setup, environment variables, Firebase setup summary, deployment, license, and a note that students never need to sign in.
+
+PHASE 2: FIRST PUSH TO GITHUB
+1. Run git init if there is no .git. Set the default branch to main. If git user.name/email are missing, ask me once and set them.
+2. Add the remote origin https://github.com/onlinezubair/mcqs.git. Run git fetch.
+3. The remote may hold one commit (a GitHub-created LICENSE) with unrelated history. Do NOT force push. Commit locally, then run git pull origin main --allow-unrelated-histories, resolve any LICENSE conflict by keeping one MIT file, and git push -u origin main.
+4. Set the repo description and topics (with gh if available, otherwise list the manual steps). Confirm the repo shows "MIT License" and that no secrets or ignored files were pushed.
+5. Authentication: if push needs credentials, use gh auth login or Git Credential Manager and guide me step by step.
+
+PHASE 3: FIREBASE PROJECT (Spark)
+1. Install firebase-tools (npm i -g firebase-tools, or use npx) and run firebase login with the Google account above. DO NOT create a new Firebase project: use the existing project mcqs-exam (firebase use mcqs-exam, and write .firebaserc). Run firebase projects:list to confirm it is visible, and confirm it is on the Spark (no-cost) plan with no billing account attached. If it is not visible, tell me to check that I am signed in to the same Google account in the browser and in the CLI.
+2. Check first whether a Web App and a Firestore database already exist in mcqs-exam, and reuse them instead of creating duplicates. If no Web App exists, register one and obtain its config. If no Firestore database exists, create it in Native mode in asia-south1 (Mumbai), or the nearest available region, and tell me which region you chose (it cannot be changed later).
+3. Steps that need the Firebase console (give me exact click-by-click instructions, nothing vague):
+   - Authentication > Get started > Sign-in method > enable Google, set the support email.
+   - Authentication > Settings > Authorized domains: make sure mcqs-exam.web.app, mcqs-exam.firebaseapp.com and localhost are listed, plus any custom domain later.
+   - Optional hardening: in Google Cloud Console > APIs & Services > Credentials, restrict the browser API key to the hosting domains and localhost.
+4. Put the Firebase web config in environment variables: NEXT_PUBLIC_FIREBASE_API_KEY, AUTH_DOMAIN, PROJECT_ID, STORAGE_BUCKET, MESSAGING_SENDER_ID, APP_ID. Create .env.local (ignored) and .env.example (committed, with placeholders). Explain that these web values are not secrets but are still kept out of the code.
+
+PHASE 4: APP INTEGRATION
+1. Install the firebase SDK (modular v9+). Create lib/firebase initialization that is safe for Next.js static export (client-only usage, no server code, no duplicate init).
+2. Auth: "Sign in with Google" using signInWithPopup, sign-out, an auth state listener, a protected app shell that requires sign-in before the exam builder/setup, and clear loading and error states (popup blocked, network offline, unauthorized domain).
+3. Storage abstraction: build a persistence layer with a local adapter (localStorage/IndexedDB cache and autosave) and a Firestore adapter, so the existing Milestone 7 persistence (autosave, last settings, resume banner) works with both. Sync to Firestore with debounced writes, show a sync status indicator, and handle offline gracefully.
+4. Data model (all under the signed-in user): users/{uid} (profile, settings, last used settings) and users/{uid}/papers/{paperId} plus its questions (see the 1 MiB constraint). Include createdAt/updatedAt, a schemaVersion field, and owner uid. Provide create, list, open, rename, duplicate, delete and import/export JSON for papers.
+5. Keep student-facing exam display modes free of answer keys.
+6. Do not collect student personal data in Firestore beyond what the teacher deliberately enters.
+
+PHASE 5: SECURITY RULES AND INDEXES
+1. Write firestore.rules: deny everything by default; allow read/write on users/{uid}/** only if request.auth != null && request.auth.uid == uid; validate field types, required fields, string and array size limits, and that the stored owner uid equals the path uid.
+2. Write firestore.indexes.json if any query needs it. Deploy rules and indexes with firebase deploy --only firestore.
+3. Test the rules with the Firebase emulator (Auth + Firestore) if Java is available, or otherwise write a clear manual test checklist: signed-out user denied, user A cannot read or write user B's data, malformed data rejected.
+
+PHASE 6: HOSTING (Firebase Hosting, static export)
+1. Configure firebase.json: public directory out, sensible cache headers for static assets, a 404 fallback, and security headers (X-Content-Type-Options, Referrer-Policy, a conservative Content-Security-Policy that still allows Google sign-in popups and Firebase endpoints). Set trailingSlash and any Next.js export settings the routing needs.
+2. Build with npm run build and deploy with firebase deploy --only hosting. Verify the live URL https://mcqs-exam.web.app: sign in with Google, create a paper, reload and confirm it persists, sign out, and confirm a different Google account cannot see the first account's papers.
+3. Commit .firebaserc and firebase.json, never service-account keys.
+
+PHASE 7: AUTOMATION AND QUALITY
+1. Add a GitHub Actions workflow: on pull request and push to main, run npm ci, lint, typecheck, Vitest, and build. Add a second job to deploy to Firebase Hosting on pushes to main (use firebase init hosting:github or an equivalent, with the Firebase service account stored only as a GitHub Actions secret, with a minimal-privilege role). List any GitHub secrets I must confirm.
+2. Add unit tests for the persistence layer (local adapter, Firestore adapter with mocks), auth guard behavior, and data validation. All existing tests must still pass.
+3. Add npm scripts (dev, build, test, lint, deploy:rules, deploy:hosting) and document them in the README.
+4. Add a short SECURITY.md and a "Free-tier limits and usage" section in the README describing the quotas above and what happens if they are reached (graceful error message, local cache still works).
+
+PHASE 8: FINAL VERIFICATION AND HANDOFF
+1. Run the full checklist and show pass/fail for each item: repo is public with MIT showing; no secrets or ignored files in git history; build, tests and lint pass; rules deployed and tested; hosting live; sign-in works; per-user isolation confirmed; CI green; project still on the Spark plan with no billing enabled.
+2. Update HANDOFF.md (if present) and the README with the final architecture, URLs, environment variables, and anything I must do manually in future, written in plain language for a non-technical reader.
+3. End with a short green AI Feedback Summary: repo URL, live site URL, Firebase project id (expected: mcqs-exam), plan (Spark), commit hash, test results, and any open items.
+
+RULES FOR AMBIGUITY
+Choose safe, simple defaults and state your assumptions in one line instead of stopping to ask. Stop and ask me only if a decision would risk data loss, billing, or exposing exam content. The Firebase project ID mcqs-exam is final: never rename it or create a second project, and never print API keys, tokens or service-account contents in your replies.

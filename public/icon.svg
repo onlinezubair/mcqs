@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="MCQ Projector">
+  <rect width="512" height="512" rx="96" fill="#1e1e1e"/>
+  <g fill="#f0f0f0">
+    <rect x="96" y="112" width="320" height="32" rx="16"/>
+    <rect x="96" y="184" width="256" height="24" rx="12" opacity="0.85"/>
+    <rect x="96" y="240" width="288" height="24" rx="12" opacity="0.85"/>
+    <rect x="96" y="296" width="224" height="24" rx="12" opacity="0.85"/>
+  </g>
+  <circle cx="376" cy="376" r="72" fill="#4ade80"/>
+  <path d="M344 376 l22 22 44 -48" fill="none" stroke="#1e1e1e" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

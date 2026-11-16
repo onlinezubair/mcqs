@@ -1,0 +1,920 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Seat & Paper-Set Planner</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: controls column on the left, live room chart and outputs on the right; stacks on phones. */
+:root{
+  --bg:#f2f5f4; --surface:#ffffff; --line:#d3dbd8; --fg:#16201e; --muted:#5a6a66;
+  --accent:#12433a; --accent-fg:#ffffff; --danger:#c0262d; --ok:#1d7a48; --warn:#9a6200;
+  --cellfg:#14201d;
+  --s0:#c9dcff; --s1:#ffd8b0; --s2:#c6ebc9; --s3:#f6c4e1; --s4:#ddd0ff; --s5:#fff0a0; --s6:#b8ecec; --s7:#ffc3bd;
+  --font:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif; --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1514; --surface:#162120; --line:#2a3a37; --fg:#e5efec; --muted:#93a8a3;
+  --accent:#6fd1b6; --accent-fg:#0b1e1a; --danger:#ff7b80; --ok:#5fd39a; --warn:#e0b050; --cellfg:#f3f8f6;
+  --s0:#2f4f96; --s1:#8d5220; --s2:#2f6d3c; --s3:#8d3169; --s4:#5b429f; --s5:#80730f; --s6:#1e6c6c; --s7:#933b34; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1514; --surface:#162120; --line:#2a3a37; --fg:#e5efec; --muted:#93a8a3;
+  --accent:#6fd1b6; --accent-fg:#0b1e1a; --danger:#ff7b80; --ok:#5fd39a; --warn:#e0b050; --cellfg:#f3f8f6;
+  --s0:#2f4f96; --s1:#8d5220; --s2:#2f6d3c; --s3:#8d3169; --s4:#5b429f; --s5:#80730f; --s6:#1e6c6c; --s7:#933b34; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:14px;line-height:1.45;margin:0;
+  padding-block:16px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-size:22px;margin:0;letter-spacing:-.01em}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px;font-weight:600}
+.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.sub{margin:2px 0 0;color:var(--muted);max-width:60ch}
+.app{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.app{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:8px}
+.field:last-child{margin-bottom:0}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{min-width:0}
+label,.lbl{font-size:12px;color:var(--muted)}
+select,input[type=number],input[type=text],textarea{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:6px 8px}
+textarea{font-family:var(--mono);font-size:12px;resize:vertical;min-height:110px}
+input[type=checkbox]{margin-right:6px}
+.chk{display:flex;align-items:flex-start;font-size:13px;color:var(--fg)}
+button{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.pri{background:var(--accent);color:var(--accent-fg);border-color:var(--accent);font-weight:600}
+button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible,.seat:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:flex;gap:4px;flex-wrap:wrap}
+.seg button{min-width:34px;padding:6px 0;flex:1}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.stat b{display:block;font-size:20px;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500}
+.stat span{font-size:12px;color:var(--muted)}
+.stat.bad b{color:var(--danger)} .stat.good b{color:var(--ok)}
+.note{border:1px solid var(--line);border-left:3px solid var(--accent);background:var(--surface);padding:8px 12px;border-radius:4px;margin-bottom:12px;font-size:13px}
+.note.warn{border-left-color:var(--warn)} .note.bad{border-left-color:var(--danger)}
+.compare{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.cmp{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:6px 10px;min-width:96px;text-align:left}
+.cmp b{font-size:13px} .cmp span{font-size:11px;color:var(--muted);font-family:var(--mono)}
+.cmp.cur{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.cmp.ok span{color:var(--ok)} .cmp.no span{color:var(--danger)}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;border-bottom:1px solid var(--line);padding-bottom:8px}
+.tabs button.on{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+.view{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px;min-width:0}
+.tools{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:12px;border:1px solid var(--line);font-size:12px;font-family:var(--mono)}
+.dot{width:12px;height:12px;border-radius:3px;border:1px solid var(--line);display:inline-block}
+.d0{background:var(--s0)}.d1{background:var(--s1)}.d2{background:var(--s2)}.d3{background:var(--s3)}.d4{background:var(--s4)}.d5{background:var(--s5)}.d6{background:var(--s6)}.d7{background:var(--s7)}
+.front{text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-bottom:2px solid var(--fg);padding-bottom:3px;margin-bottom:8px}
+.gridwrap{overflow-x:auto;padding-bottom:6px}
+.grid{display:grid;gap:4px;width:max-content}
+.hd{font-size:11px;color:var(--muted);text-align:center;align-self:center;font-family:var(--mono)}
+.seat{width:var(--sw,70px);height:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;padding:2px;border:2px solid transparent;border-radius:5px;color:var(--cellfg);position:relative}
+.seat b{font-size:19px;line-height:1.1;font-weight:600}
+.seat span{font-size:11px;font-family:var(--mono);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.seat.s0{background:var(--s0)}.seat.s1{background:var(--s1)}.seat.s2{background:var(--s2)}.seat.s3{background:var(--s3)}
+.seat.s4{background:var(--s4)}.seat.s5{background:var(--s5)}.seat.s6{background:var(--s6)}.seat.s7{background:var(--s7)}
+.seat.empty{opacity:.45;border-style:dashed;border-color:var(--muted)}
+.seat.absent{opacity:.5}.seat.absent span{text-decoration:line-through}
+.seat.blk{background:repeating-linear-gradient(45deg,var(--line) 0 5px,transparent 5px 10px);border:1px solid var(--line);color:var(--muted)}
+.seat.nbr{border-color:var(--fg)}
+.seat.sel{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent)}
+.seat.swp{box-shadow:0 0 0 3px var(--warn)}
+.seat.conf{border-color:var(--danger);border-style:solid}
+.seat.conf::after{content:"!";position:absolute;top:1px;right:4px;color:var(--danger);font-weight:700;font-size:14px}
+.seatpanel{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:13px}
+.seatpanel .row{margin-top:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+th{background:var(--bg);font-weight:600;font-size:12px}
+td.m,th.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto;margin-bottom:14px}
+.stack{font-family:var(--mono);font-size:13px;margin:2px 0}
+.cell-s{display:block;font-weight:600}
+.h3{font-size:15px;font-weight:600;margin:14px 0 6px}
+.how{font-size:13px;color:var(--muted)}
+#fallback{margin-top:8px;min-height:120px}
+</style>
+
+<header class="top">
+  <div>
+    <h1>Seat &amp; Paper-Set Planner</h1>
+    <p class="sub">Give every seat a paper set so nobody has a matching neighbour. Works for 2 to 8 scrambled sets, any room shape and any list of roll numbers.</p>
+  </div>
+  <div id="banner"></div>
+</header>
+
+<div class="app">
+<aside class="panel" id="controls">
+  <section>
+    <h2>1 · Students</h2>
+    <div class="field"><label for="rolls">One student per line. Roll number first; name and class are optional, separated by a comma or tab.</label>
+      <textarea id="rolls" spellcheck="false"></textarea></div>
+    <div class="field"><label for="file">Or load a .csv / .txt file</label><input type="file" id="file" accept=".csv,.txt,.tsv"></div>
+    <details class="field" id="aiBox">
+      <summary style="cursor:pointer;font-size:13px">List is in Excel, PDF, Word or a photo? Get an AI to reformat it</summary>
+      <p class="hint">Copy this prompt into any AI assistant and attach your file. Before sending, replace the ____ in the two lines at the top: the class label for this list (for example PharmD-3A, or leave it blank) and any notes. Then load the .txt it returns here, or paste the list above.</p>
+      <textarea id="promptText" spellcheck="false" style="min-height:460px">TEACHER INPUT (edit these two lines before sending; leave a line as ____ if not needed)
+CLASS LABEL FOR EVERY STUDENT: ____
+NOTES (for example which course, section or rows to include, or which column is the roll): ____
+
+You are preparing a student list for an exam seating app. The app accepts ONE exact text format. Convert my attached file (or pasted text) into that format perfectly. The source can be ANY document that contains students: a plain list, an attendance sheet, a marks or result sheet, a class register, a gazette, a sign-in sheet, a seating plan. It may be .txt, .csv, .xlsx, .pdf, Word, a photo or a scan, in any layout. Getting it right is entirely your responsibility. Do not ask me to fix anything by hand.
+
+OUTPUT FORMAT (strict, the app rejects anything else)
+- One student per line: roll,name,class
+- Exactly two commas on every line, even when a field is empty. Examples:
+  2305,Ayesha Khan,PharmD-3A
+  2306,Bilal Ahmed,
+- Roll number: required, unique per student, kept exactly as written (letters, dashes, slashes, leading zeros). No spaces.
+- Name: optional. Remove commas, semicolons, tabs, quotes and double spaces inside it. Keep the spelling. If a name is in ALL CAPS or all lowercase, convert it to normal Title Case (Ayesha Khan). Leave mixed-case names as they are.
+- Class: see CLASS RULE. Use hyphens, no spaces, no commas.
+- Plain UTF-8 text. No header row, no numbering, no blank lines, no quotes, no tabs, no bullets, no table, no commentary inside the list.
+- Keep the source order. Do not sort, renumber or fill gaps.
+
+STEP 1: CLASSIFY EVERY COLUMN AND HEADING FIRST
+Look at the whole source (every sheet, page and table) and decide what each column and heading is. Typical roles: serial number, roll or registration or student ID, name (or first name and last name), father's name, programme, semester, section, course or subject, course code, instructor, room, timetable, exam or term title, group or filter label (such as "All participants"), date, attendance mark (P, A, L, ?), attendance count or percentage, marks, grade, signature, remarks. Only roll, name and the student's own class are used. Everything else is ignored, including every attendance mark, session date, count, percentage, mark and grade.
+
+STEP 2: ROLL NUMBER
+It is the unique ID printed for each student (Roll No, Reg No, Enrollment, Student ID). Never use serial numbers (S.No, Sr, #), seat numbers, page numbers, marks, attendance counts or phone numbers. If several ID columns exist, use the university roll or registration number and say which in Check.
+
+STEP 3: NAME
+If first name and last name are separate columns, output First name then Last name, joined by one space, even when the last-name cell holds several words. If the source has one name column, keep its order. Never drop part of a name.
+
+STEP 4: CLASS RULE (very important)
+- If CLASS LABEL above is filled in, use exactly that text for every student and ignore everything else about class.
+- If it is blank or ____: use a class only when the source itself states the students' OWN programme, semester, batch or section for them (a programme or section column, a heading that names the students' programme or section, or a section title above a block of students), and apply it only to the students it covers. Otherwise leave class EMPTY.
+- NEVER use as class: the course or subject name, the course code, the instructor, the room, the timetable, the department, the campus, the exam or term title, a date, or a group or filter label such as "All participants" or "All students". Example: an attendance sheet headed "Software Engineering - course 871 (room LR8)" does NOT mean the students are in SE. The students may belong to any programme.
+- An empty class is correct. A wrong or guessed class is a failure. Never copy one class onto everyone unless the label or the source clearly says so.
+
+STEP 5: OTHER RULES
+- Handle layouts such as several students side by side in one row, and headers, footers, totals and page numbers repeated on each page (ignore them).
+- Combine all sheets, tables and pages into one list.
+- Include every student regardless of attendance, marks or result: absent, late, failed and low-attendance students are still students. If a row is marked withdrawn, dropped, struck through or not allowed, keep it and list it in Check.
+- Repair spreadsheet damage: roll numbers that lost leading zeros, appear as 2.3E+10, or end in .0, when the true value is clear; otherwise keep them and report.
+- Photos and scans: read every digit carefully. Give your best reading and list uncertain rows in Check.
+- Convert Urdu or Arabic-Indic digits to 0-9.
+- Never invent a roll, name or class.
+- Drop exact duplicate rows. If one roll appears more than once with different names, keep every line and list them in Check. The same name with different rolls is normal, so keep those.
+- Skip any row with no roll number or that is not a student (totals, signatures, instructor lines) and list them in Check.
+- Never shorten the list: no "...", no "and so on", no sampling. If it is too long for one reply, continue in following messages (Part 1, Part 2, ...) until every student is output.
+
+VERIFY BEFORE REPLYING (run code if you can)
+- Every line has exactly two commas and no tab or semicolon.
+- Roll numbers are unique, or the exceptions are listed in Check.
+- The number of lines equals the number of students in the source. If the source prints its own total, compare it and report any difference.
+- No class value is a course name, course code, subject, room or group label.
+- No line is a header, a total or an attendance or marks row.
+
+DELIVER
+1. students.txt as a downloadable file if you can, AND the complete list in one code block so it can be copied.
+2. Summary line: Students: N. With name: N. With class: N. Classes found: A (n), B (n), ... (write "none" if no class).
+3. Check: skipped rows and why; doubtful readings; duplicates; which ID column you used; where any class came from (the label, or which column or heading) or "no class in the source"; and any roll that looks unlike the others (very different length, range or pattern, for example placeholder-looking numbers such as 77777). Keep those students in the list, only flag them. Write "Nothing to check" if it is clean.</textarea>
+      <div class="row" style="margin-top:6px"><button data-act="copy" data-v="prompt" data-label="Copy AI prompt">Copy AI prompt</button></div>
+    </details>
+    <div class="field"><label for="seatMode">Seating when seats outnumber students</label>
+      <select id="seatMode"><option value="spread">Spread students out</option><option value="front">Fill from the front</option><option value="random">Random seats</option></select></div>
+    <div class="field"><label for="roomFill">Across rooms</label>
+      <select id="roomFill"><option value="even">Share evenly by room size</option><option value="seq">Fill room 1, then room 2 …</option></select></div>
+    <label class="chk"><input type="checkbox" id="groupApart" checked>Keep students with the same class entry apart</label>
+    <div class="row" style="margin-top:8px"><button class="pri" id="applyStudents">Seat these students</button><button data-act="clear" title="Remove the student list and the class counts">Clear students</button></div>
+  </section>
+
+  <section>
+    <h2>2 · Rooms</h2>
+    <div class="field"><label for="roomName">Active room name</label><input type="text" id="roomName"></div>
+    <div class="row">
+      <div class="field" style="flex:1"><label for="rows">Rows</label><input type="number" id="rows" min="1" max="30"></div>
+      <div class="field" style="flex:1"><label for="cols">Seats per row (up to 12)</label><input type="number" id="cols" min="1" max="12"></div>
+    </div>
+    <div class="row"><button id="addRoom">Add room</button><button id="delRoom">Remove this room</button></div>
+    <p class="hint">Rooms share the neighbour rule and set count. Rows and seats per row are set per room.</p>
+  </section>
+
+  <section>
+    <h2>3 · Paper sets and neighbours</h2>
+    <div class="field"><span class="lbl">Number of scrambled sets</span>
+      <div class="seg" id="nSeg"></div></div>
+    <div class="field"><label for="labelMode">Set codes</label>
+      <select id="labelMode"><option value="letters">A, B, C …</option><option value="numbers">1, 2, 3 …</option><option value="custom">My own codes</option></select></div>
+    <div class="field" id="customWrap" hidden><label for="customLabels">Codes, separated by commas</label>
+      <input type="text" id="customLabels" value="X1,Y2,Z3,P4,Q5,R6,S7,T8"></div>
+  
+    <div class="field"><label for="rule">Neighbour rule</label>
+      <select id="rule">
+        <option value="sides">Left, right, front, back</option>
+        <option value="king" selected>Sides and all four diagonals</option>
+        <option value="kingplus">Diagonals plus one seat further along row and column</option>
+      </select></div>
+    <div class="field"><label for="spacing">Seat usage</label>
+      <select id="spacing">
+        <option value="all">Use every seat</option>
+        <option value="altcol">Leave every other seat in a row empty</option>
+        <option value="altrow">Leave every other row empty</option>
+        <option value="checker">Checkerboard (alternate seats empty)</option>
+      </select></div>
+    <div class="field"><label for="bench">Bench layout</label>
+      <select id="bench"><option value="0">One block, no aisles</option><option value="2" selected>Aisle after every 2 seats</option><option value="3">Aisle after every 3 seats</option><option value="4">Aisle after every 4 seats</option><option value="6">Aisle after every 6 seats</option></select></div>
+    <label class="chk"><input type="checkbox" id="aisle">Treat an aisle as a gap (seats across it are not neighbours)</label>
+  </section>
+
+  <section>
+    <h2>4 · Quick plan</h2>
+    <p class="hint" id="qpInfo"></p>
+    <div class="field" id="qpManual"><label for="classes">No list? Type classes and counts, one per line (example: BS-3, 24). Placeholder roll numbers will be used.</label>
+      <textarea id="classes" spellcheck="false" style="min-height:70px" placeholder="BS-3, 24&#10;BS-4, 16"></textarea></div>
+    <div class="row"><button class="pri" id="makePlan">Make best plan</button><button data-act="clear" title="Remove the student list and the class counts">Clear students</button></div>
+    <p class="hint">Uses the students from step 1, the rooms from step 2 and the sets and rule from step 3. It picks the strongest protection that leaves no same-set neighbours, seats everyone and keeps classmates apart. Your student list is never replaced.</p>
+  </section>
+
+  <section>
+    <h2>5 · Fine-tune the layout</h2>
+    <div class="field"><label for="method">Method</label>
+      <select id="method"><option value="auto">Auto: best of many random layouts</option><option value="shift">Diagonal shift pattern</option><option value="tile">2×2 tile (needs 4+ sets)</option></select></div>
+    <div class="row"><div class="field" style="flex:1"><label for="setSeed">Layout seed</label><input type="number" id="setSeed"></div>
+      <button class="pri" id="newLayout" style="margin-top:14px">New layout</button></div>
+    <p class="hint">A new layout redraws every room and seats the students again. Keep the seed private.</p>
+  <div class="row" style="margin-top:8px"><button id="reshuffle">Reshuffle students</button></div>
+    <p class="hint">Reshuffle keeps the paper layout and moves the students.</p>
+  </section>
+
+  <section>
+    <h2>6 · Printing</h2>
+    <div class="field"><label for="spare">Spare papers per set (%)</label><input type="number" id="spare" min="0" max="50" value="5"></div>
+  </section>
+</aside>
+
+<main style="min-width:0">
+  <div id="banner2"></div>
+  <div class="stats" id="stats"></div>
+  <div id="note"></div>
+  <h2>What each number of sets gives in this room</h2>
+  <div class="compare" id="compare"></div>
+  <nav class="tabs" id="tabs"></nav>
+  <div class="view" id="view"></div>
+  <textarea id="fallback" hidden readonly aria-label="Text to copy"></textarea>
+</main>
+</div>
+
+<script>
+//CORE_START
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffleArr(a,rnd){for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));const t=a[i];a[i]=a[j];a[j]=t}return a}
+const RULES={
+  sides:[[0,1],[0,-1],[1,0],[-1,0]],
+  king:[[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]],
+  kingplus:[[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1],[0,2],[0,-2],[2,0],[-2,0]]
+};
+const NEED={sides:2,king:4,kingplus:5};
+function availMask(rows,cols,blocked,spacing){
+  const a=new Uint8Array(rows*cols);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const sp=spacing==='altcol'?c%2===0:spacing==='checker'?(r+c)%2===0:spacing==='altrow'?r%2===0:true;
+    a[r*cols+c]=(!blocked.has(r+','+c)&&sp)?1:0;
+  }
+  return a;
+}
+function buildNbrs(rows,cols,avail,rule,bench,aisle){
+  const off=RULES[rule],nb=[];
+  for(let i=0;i<rows*cols;i++){
+    if(!avail[i]){nb.push([]);continue}
+    const r=(i/cols)|0,c=i%cols,list=[];
+    for(const [dr,dc] of off){
+      const rr=r+dr,cc=c+dc;
+      if(rr<0||rr>=rows||cc<0||cc>=cols)continue;
+      const j=rr*cols+cc;
+      if(!avail[j])continue;
+      if(aisle&&bench>0&&Math.floor(c/bench)!==Math.floor(cc/bench))continue;
+      list.push(j);
+    }
+    nb.push(list);
+  }
+  return nb;
+}
+function conflictSet(g,nb,present){
+  const s=new Set();
+  for(let i=0;i<g.length;i++){
+    if(!present[i]||g[i]<0)continue;
+    for(const j of nb[i]) if(present[j]&&g[j]===g[i]){s.add(i);s.add(j)}
+  }
+  return s;
+}
+function countConflicts(g,nb,present){
+  let x=0;
+  for(let i=0;i<g.length;i++){
+    if(!present[i]||g[i]<0)continue;
+    for(const j of nb[i]) if(j>i&&present[j]&&g[j]===g[i])x++;
+  }
+  return x;
+}
+function minSameDist(g,present,cols,n){
+  const by=Array.from({length:n},()=>[]);
+  for(let i=0;i<g.length;i++) if(present[i]&&g[i]>=0) by[g[i]].push(i);
+  let m=99;
+  for(const L of by)for(let a=0;a<L.length;a++){
+    const ra=(L[a]/cols)|0,ca=L[a]%cols;
+    for(let b=a+1;b<L.length;b++){
+      const d=Math.max(Math.abs(ra-((L[b]/cols)|0)),Math.abs(ca-L[b]%cols));
+      if(d<m)m=d;
+    }
+  }
+  return m;
+}
+function chooseSet(g,i,rows,cols,nb,n,cnt,rnd){
+  const r=(i/cols)|0,c=i%cols,bad=new Array(n).fill(0);
+  for(const j of nb[i]) if(g[j]>=0) bad[g[j]]++;
+  let mb=Infinity;for(let s=0;s<n;s++) if(bad[s]<mb) mb=bad[s];
+  let best=-1,bd=-1,bc=1e9,br=0;
+  for(let s=0;s<n;s++){
+    if(bad[s]!==mb)continue;
+    let d=4;
+    for(let dr=-3;dr<=3;dr++){
+      const rr=r+dr; if(rr<0||rr>=rows)continue;
+      for(let dc=-3;dc<=3;dc++){
+        if(!dr&&!dc)continue;
+        const cc=c+dc; if(cc<0||cc>=cols)continue;
+        if(g[rr*cols+cc]===s){const x=Math.max(Math.abs(dr),Math.abs(dc)); if(x<d)d=x}
+      }
+    }
+    const rv=rnd();
+    if(d>bd||(d===bd&&(cnt[s]<bc||(cnt[s]===bc&&rv>br)))){best=s;bd=d;bc=cnt[s];br=rv}
+  }
+  return best;
+}
+function greedyGen(rows,cols,avail,nb,n,rnd){
+  const g=new Int8Array(rows*cols).fill(-1),cnt=new Array(n).fill(0);
+  for(let i=0;i<g.length;i++){
+    if(!avail[i])continue;
+    const s=chooseSet(g,i,rows,cols,nb,n,cnt,rnd);
+    g[i]=s;cnt[s]++;
+  }
+  return g;
+}
+function shiftGen(rows,cols,avail,nb,n,rnd){
+  let best=[],bk=null;
+  for(let a=0;a<n;a++)for(let b=0;b<n;b++){
+    const g=new Int8Array(rows*cols).fill(-1);
+    for(let i=0;i<g.length;i++) if(avail[i]) g[i]=(a*(i%cols)+b*((i/cols)|0))%n;
+    const cf=countConflicts(g,nb,avail),md=Math.min(minSameDist(g,avail,cols,n),4);
+    if(!bk||cf<bk[0]||(cf===bk[0]&&md>bk[1])){bk=[cf,md];best=[[a,b]]}
+    else if(cf===bk[0]&&md===bk[1]) best.push([a,b]);
+  }
+  const [a,b]=best[Math.floor(rnd()*best.length)];
+  const perm=shuffleArr([...Array(n).keys()],rnd),oc=Math.floor(rnd()*n),or=Math.floor(rnd()*n);
+  const g=new Int8Array(rows*cols).fill(-1);
+  for(let i=0;i<g.length;i++) if(avail[i]) g[i]=perm[(a*((i%cols)+oc)+b*(((i/cols)|0)+or))%n];
+  return g;
+}
+function tileGen(rows,cols,avail,n,rnd){
+  const p=shuffleArr([...Array(n).keys()],rnd),pairs=[[p[0],p[1]],[p[2],p[3]]];
+  const flip=rnd()<0.5,ro=Math.floor(rnd()*2),ph=Array.from({length:Math.max(rows,cols)},()=>Math.floor(rnd()*2));
+  const g=new Int8Array(rows*cols).fill(-1);
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const i=r*cols+c; if(!avail[i])continue;
+    g[i]=flip?pairs[(c+ro)%2][(r+ph[c])%2]:pairs[(r+ro)%2][(c+ph[r])%2];
+  }
+  return g;
+}
+function bestLayout(rows,cols,avail,nb,n,rnd,method,attempts){
+  const cands=[];
+  if(n<=1){cands.push(new Int8Array(rows*cols).map((_,i)=>avail[i]?0:-1))}
+  else{
+    if(method==='tile'&&n<4)method='auto';
+    if(method==='auto') for(let k=0;k<attempts;k++) cands.push(greedyGen(rows,cols,avail,nb,n,rnd));
+    if(method==='auto'||method==='shift'){cands.push(shiftGen(rows,cols,avail,nb,n,rnd));cands.push(shiftGen(rows,cols,avail,nb,n,rnd))}
+    if((method==='auto'||method==='tile')&&n>=4){cands.push(tileGen(rows,cols,avail,n,rnd));cands.push(tileGen(rows,cols,avail,n,rnd))}
+  }
+  let best=null;
+  for(const g of cands){
+    const cf=countConflicts(g,nb,avail),md=Math.min(minSameDist(g,avail,cols,n),4);
+    const cnt=new Array(n).fill(0);for(let i=0;i<g.length;i++)if(g[i]>=0)cnt[g[i]]++;
+    const imb=Math.max(...cnt)-Math.min(...cnt),rv=rnd();
+    const better=!best||cf<best.cf||(cf===best.cf&&(md>best.md||(md===best.md&&(imb<best.imb||(imb===best.imb&&rv>best.rv)))));
+    if(better)best={g,cf,md,imb,rv};
+  }
+  return best;
+}
+function pickSeats(idx,k,mode,cols,rnd){
+  if(k>=idx.length)return idx.slice();
+  if(k<=0)return [];
+  if(mode==='front')return idx.slice(0,k);
+  if(mode==='random')return shuffleArr(idx.slice(),rnd).slice(0,k).sort((a,b)=>a-b);
+  const N=idx.length,dmin=new Float64Array(N).fill(Infinity),ch=[],first=Math.floor(rnd()*N);
+  let cur=first;
+  for(let t=0;t<k;t++){
+    ch.push(cur);
+    const cr=(idx[cur]/cols)|0,cc=idx[cur]%cols;
+    let nx=-1,nv=-1;
+    for(let q=0;q<N;q++){
+      const dr=((idx[q]/cols)|0)-cr,dc=(idx[q]%cols)-cc,d=dr*dr+dc*dc;
+      if(d<dmin[q])dmin[q]=d;
+      if(dmin[q]>nv){nv=dmin[q];nx=q}
+    }
+    cur=nx;
+  }
+  return ch.map(q=>idx[q]).sort((a,b)=>a-b);
+}
+function distribute(caps,total,mode){
+  const cap=caps.reduce((a,b)=>a+b,0),out=caps.map(()=>0);
+  if(cap===0)return out;
+  if(total>=cap)return caps.slice();
+  if(mode==='seq'){let left=total;caps.forEach((c,i)=>{out[i]=Math.min(c,left);left-=out[i]});return out}
+  let used=0;const fr=[];
+  caps.forEach((c,i)=>{const x=total*c/cap;out[i]=Math.floor(x);used+=out[i];fr.push([x-out[i],i])});
+  fr.sort((a,b)=>b[0]-a[0]);
+  for(let k=0;used<total&&k<fr.length*2;k++){const i=fr[k%fr.length][1];if(out[i]<caps[i]){out[i]++;used++}}
+  return out;
+}
+function parseStudents(text){
+  const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  if(!lines.length)return [];
+  let items;
+  if(lines.length===1&&!/[\t;,]/.test(lines[0])&&lines[0].split(/\s+/).every(t=>/\d/.test(t))) items=lines[0].split(/[\s,]+/).filter(Boolean).map(t=>[t.replace(/^["']+|["']+$/g,'')]);
+  else items=lines.map(l=>l.split(/\t|,|;/).map(x=>x.trim().replace(/^["']+|["']+$/g,'')));
+  if(items.length&&/^(roll|id|reg|s\.?\s?no|sr|#|student)/i.test(items[0][0])&&items.length>1)items.shift();
+  return items.filter(a=>a[0]).map(a=>({roll:a[0],name:a[1]||'',group:a[2]||''}));
+}
+//CORE_END
+
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LETTERS='ABCDEFGH';
+const S={n:4,rule:'king',spacing:'all',bench:2,aisle:false,method:'auto',labelMode:'letters',custom:'X1,Y2,Z3,P4,Q5,R6,S7,T8',
+  spare:5,setSeed:2711,stuSeed:41,seatMode:'spread',roomFill:'even',groupApart:true,
+  rooms:[],active:0,tool:'select',paint:0,sel:null,swap:null,students:[],absent:new Set(),sample:true,tab:'chart',unseated:[],dups:[],plan:''};
+
+function newRoom(name,rows,cols){return {name,rows,cols,blocked:new Set(),avail:null,nb:null,sets:null,stu:null,res:null}}
+function lab(s){
+  if(s<0)return '–';
+  if(S.labelMode==='numbers')return String(s+1);
+  if(S.labelMode==='custom'){const a=S.custom.split(/[,\s]+/).filter(Boolean);return a[s]||LETTERS[s]}
+  return LETTERS[s];
+}
+function seatId(room,i){return 'R'+(((i/room.cols)|0)+1)+'-S'+((i%room.cols)+1)}
+function roomLayout(room){
+  room.avail=availMask(room.rows,room.cols,room.blocked,S.spacing);
+  room.nb=buildNbrs(room.rows,room.cols,room.avail,S.rule,S.bench,S.aisle);
+}
+function layoutAll(){S.rooms.forEach(roomLayout)}
+function genSets(){
+  S.rooms.forEach((room,ri)=>{
+    const rnd=mulberry32(S.setSeed*7919+ri*104729);
+    room.res=bestLayout(room.rows,room.cols,room.avail,room.nb,S.n,rnd,S.method,room.rows*room.cols>300?8:30);
+    room.sets=room.res.g;
+  });
+}
+function placeStudents(){
+  const rnd=mulberry32(S.stuSeed*31337+7);
+  S.rooms.forEach(r=>{r.stu=new Int16Array(r.rows*r.cols).fill(-1)});
+  const order=shuffleArr(S.students.map((_,i)=>i),rnd);
+  const caps=S.rooms.map(r=>r.avail.reduce((a,b)=>a+b,0));
+  const share=distribute(caps,order.length,S.roomFill);
+  let p=0;
+  S.rooms.forEach((room,ri)=>{
+    const idx=[];for(let i=0;i<room.avail.length;i++)if(room.avail[i])idx.push(i);
+    const seats=pickSeats(idx,share[ri],S.seatMode,room.cols,rnd);
+    seats.forEach(i=>{room.stu[i]=order[p++]});
+    if(S.groupApart&&S.students.some(s=>s.group))separateGroups(room,rnd);
+  });
+  S.unseated=order.slice(p);
+}
+function groupClash(room,i){
+  const s=room.stu[i]>=0?S.students[room.stu[i]]:null;if(!s||!s.group)return 0;
+  let x=0;
+  for(const j of buildNbrs.cache(room,i)){const t=S.students[room.stu[j]];if(t&&t.group===s.group)x++}
+  return x;
+}
+buildNbrs.cache=function(room,i){
+  const r=(i/room.cols)|0,c=i%room.cols,out=[];
+  for(const [dr,dc] of RULES.king){const rr=r+dr,cc=c+dc;if(rr<0||rr>=room.rows||cc<0||cc>=room.cols)continue;const j=rr*room.cols+cc;if(room.avail[j])out.push(j)}
+  return out;
+};
+function separateGroups(room,rnd){
+  const occ=[];for(let i=0;i<room.stu.length;i++)if(room.stu[i]>=0)occ.push(i);
+  if(occ.length<2)return;
+  /* swap seats of two students when that does not add classmate contacts; many rounds, plateau moves allowed */
+  const free=[];for(let i=0;i<room.avail.length;i++)if(room.avail[i]&&room.stu[i]<0)free.push(i);
+  const pool=occ.concat(free);
+  for(let k=0;k<30000;k++){
+    const a=pool[Math.floor(rnd()*pool.length)],b=pool[Math.floor(rnd()*pool.length)];
+    if(a===b||(room.stu[a]<0&&room.stu[b]<0))continue;
+    const before=groupClash(room,a)+groupClash(room,b);
+    const t=room.stu[a];room.stu[a]=room.stu[b];room.stu[b]=t;
+    const after=groupClash(room,a)+groupClash(room,b);
+    if(after>before){const u=room.stu[a];room.stu[a]=room.stu[b];room.stu[b]=u}
+  }
+}
+function presentMask(room){
+  const p=new Uint8Array(room.rows*room.cols);
+  for(let i=0;i<p.length;i++){
+    if(!room.avail[i])continue;
+    if(!S.students.length){p[i]=1;continue}
+    const k=room.stu[i];
+    if(k>=0&&!S.absent.has(S.students[k].roll))p[i]=1;
+  }
+  return p;
+}
+function fillUnseated(){
+  const seated=new Set();S.rooms.forEach(r=>r.stu.forEach(k=>{if(k>=0)seated.add(k)}));
+  const left=[];
+  S.students.forEach((_,k)=>{if(!seated.has(k))left.push(k)});
+  const rooms=[S.rooms[S.active],...S.rooms.filter((_,i)=>i!==S.active)];
+  const still=[];
+  for(const k of left){
+    let done=false;
+    for(const room of rooms){
+      const pm=presentMask(room);let fb=-1;
+      for(let i=0;i<room.avail.length;i++){
+        if(!room.avail[i]||room.stu[i]>=0)continue;
+        if(fb<0)fb=i;
+        if(!room.nb[i].some(j=>pm[j]&&room.sets[j]===room.sets[i])){room.stu[i]=k;done=true;break}
+      }
+      if(!done&&fb>=0){room.stu[fb]=k;done=true}
+      if(done)break;
+    }
+    if(!done)still.push(k);
+  }
+  S.unseated=still;
+}
+function fullReplan(){S.plan='';layoutAll();genSets();placeStudents();S.sel=null;S.swap=null;renderAll()}
+
+/* ---------- derived figures ---------- */
+function metrics(){
+  let seats=0,conf=0,md=99,gc=0;const per=Array(S.n).fill(0);
+  S.rooms.forEach(room=>{
+    const pm=presentMask(room);
+    room.conf=conflictSet(room.sets,room.nb,pm);
+    room.confCount=countConflicts(room.sets,room.nb,pm);
+    conf+=room.confCount;
+    md=Math.min(md,minSameDist(room.sets,pm,room.cols,S.n));
+    for(let i=0;i<room.avail.length;i++){
+      if(room.avail[i])seats++;
+      if(room.avail[i]&&room.stu[i]>=0&&room.sets[i]>=0)per[room.sets[i]]++;
+      if(room.avail[i]&&room.stu[i]>=0){const g=S.students[room.stu[i]].group;if(g)for(const j of buildNbrs.cache(room,i))if(j>i&&room.stu[j]>=0&&S.students[room.stu[j]].group===g)gc++}
+    }
+  });
+  const seated=S.rooms.reduce((a,r)=>a+r.stu.filter(k=>k>=0).length,0);
+  return {seats,conf,md,per,seated,gc};
+}
+let cmpCache={};
+function compare(){
+  const room=S.rooms[S.active];
+  const key=[room.rows,room.cols,[...room.blocked].sort().join(';'),S.rule,S.spacing,S.bench,S.aisle,S.setSeed].join('|');
+  if(cmpCache.key!==key){
+    cmpCache={key,list:[]};
+    for(let n=2;n<=8;n++){
+      const res=bestLayout(room.rows,room.cols,room.avail,room.nb,n,mulberry32(S.setSeed+n),'auto',8);
+      cmpCache.list.push({n,cf:res.cf,md:res.md});
+    }
+  }
+  return cmpCache.list;
+}
+
+/* ---------- rendering ---------- */
+function renderControls(){
+  $('#nSeg').innerHTML=[2,3,4,5,6,7,8].map(n=>`<button data-act="n" data-v="${n}" class="${S.n===n?'on':''}">${n}</button>`).join('');
+  $('#customWrap').hidden=S.labelMode!=='custom';
+  const room=S.rooms[S.active];
+  $('#roomName').value=room.name;$('#rows').value=room.rows;$('#cols').value=room.cols;
+  $('#delRoom').disabled=S.rooms.length<2;
+}
+function renderBanner(){
+  $('#banner').innerHTML=S.sample?'<span class="chip">Sample roll numbers loaded. Replace them in step 1.</span>':'';syncQuick();
+}
+function renderStats(m){
+  const clash=m.conf===0;
+  $('#stats').innerHTML=
+   `<div class="stat"><b>${m.seats}</b><span>seats available</span></div>
+    <div class="stat"><b>${m.seated}${S.students.length?' / '+S.students.length:''}</b><span>students seated${S.unseated.length?' · '+S.unseated.length+' without a seat':''}</span></div>
+    <div class="stat ${clash?'good':'bad'}"><b>${m.conf}</b><span>same-set neighbours</span></div>
+    <div class="stat"><b>${m.md>=99?'–':m.md}</b><span>seats to nearest repeat</span></div>
+    ${new Set(S.students.map(s=>s.group).filter(Boolean)).size>1?`<div class="stat ${m.gc?'bad':'good'}"><b>${m.gc}</b><span>classmates side by side</span></div>`:''}
+    <div class="stat"><b>${S.rooms.length}</b><span>room${S.rooms.length>1?'s':''}</span></div>`;
+  const need=NEED[S.rule];let msg,cls='';
+  if(S.spacing!=='all'&&S.spacing!=='')msg='Empty seats remove neighbours, so fewer sets can be enough. The same-set count above is the real check.';
+  else if(S.n>=need)msg=`With ${S.n} sets every neighbour under this rule can have a different paper. ${S.n>need?'The extra sets push repeats further apart.':'Repeats are as close as two seats away.'}`;
+  else{cls='warn';msg=`This rule needs at least ${need} sets to separate every neighbour. With ${S.n} some clashes are unavoidable. Add sets, switch the rule, or leave alternate seats empty.`}
+  if(S.dups.length)msg+=` Repeated roll numbers: ${esc(S.dups.slice(0,6).join(', '))}${S.dups.length>6?' …':''}.`;
+  if(S.unseated.length){cls='bad';msg+=` ${S.unseated.length} student${S.unseated.length>1?'s have':' has'} no seat. Add a room or rows.`}
+  $('#note').innerHTML=(S.plan?`<div class="note">${S.plan}</div>`:'')+`<div class="note ${cls}">${msg}</div>`;
+  $('#compare').innerHTML=compare().map(x=>`<button class="cmp ${x.n===S.n?'cur':''} ${x.cf===0?'ok':'no'}" data-act="n" data-v="${x.n}"><b>${x.n} sets</b><span>${x.cf===0?'0 clashes · repeat ≥ '+(x.md>=4?'4+':x.md)+' away':x.cf+' clashes'}</span></button>`).join('');
+}
+function renderTabs(){
+  const t=[['chart','Seat chart'],['sheets','Invigilator sheets'],['notice','Notice board'],['papers','Paper counts'],['key','Marking key']];
+  $('#tabs').innerHTML=t.map(([k,v])=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${v}</button>`).join('');
+}
+function seatHtml(room,i){
+  const r=(i/room.cols)|0,c=i%room.cols;
+  if(!room.avail[i]){
+    const hard=room.blocked.has(r+','+c);
+    return `<button class="seat blk" data-i="${i}" aria-label="${seatId(room,i)} ${hard?'blocked':'left empty'}">${hard?'×':''}</button>`;
+  }
+  const s=room.sets[i],k=room.stu[i],st=k>=0?S.students[k]:null;
+  const noStu=S.students.length>0;
+  const cls=['seat','s'+s];
+  if(noStu&&!st)cls.push('empty');
+  if(st&&S.absent.has(st.roll))cls.push('absent');
+  if(room.conf.has(i))cls.push('conf');
+  const sel=S.sel;
+  if(sel&&sel.room===S.active){
+    if(sel.i===i)cls.push('sel');
+    else if(room.nb[sel.i].includes(i))cls.push('nbr');
+  }
+  if(S.swap&&S.swap.room===S.active&&S.swap.i===i)cls.push('swp');
+  return `<button class="${cls.join(' ')}" data-i="${i}" aria-label="${seatId(room,i)} set ${lab(s)} ${st?'roll '+esc(st.roll):'no student'}"><b>${esc(lab(s))}</b><span>${st?esc(st.roll):''}</span></button>`;
+}
+function renderChart(){
+  const room=S.rooms[S.active];
+  const roomTabs=S.rooms.length>1?`<div class="tools">${S.rooms.map((r,i)=>`<button data-act="room" data-v="${i}" class="${i===S.active?'on':''}">${esc(r.name)}</button>`).join('')}</div>`:'';
+  const tools=[['select','Select'],['block','Block / unblock seats'],['paint','Paint a set'],['swap','Swap students']]
+    .map(([k,v])=>`<button data-act="tool" data-v="${k}" class="${S.tool===k?'on':''}">${v}</button>`).join('');
+  const paint=S.tool==='paint'?`<span class="lbl">Brush:</span>`+Array.from({length:S.n},(_,s)=>`<button data-act="brush" data-v="${s}" class="${S.paint===s?'on':''}"><span class="dot d${s}"></span> ${esc(lab(s))}</button>`).join(''):'';
+  const hints={select:'Click a seat to see its neighbours.',block:'Click a seat to remove it from use, or click again to bring it back.',paint:'Pick a set, then click seats to change their paper.',swap:'Click one seat, then another, to swap or move students.'};
+  const sw=room.cols>10?54:room.cols>8?62:70;let cols='34px';
+  for(let c=0;c<room.cols;c++){if(S.bench>0&&c>0&&c%S.bench===0)cols+=' 14px';cols+=' '+sw+'px'}
+  let h=`<div class="hd"></div>`;
+  for(let c=0;c<room.cols;c++){if(S.bench>0&&c>0&&c%S.bench===0)h+='<div></div>';h+=`<div class="hd">${c+1}</div>`}
+  for(let r=0;r<room.rows;r++){
+    h+=`<div class="hd">R${r+1}</div>`;
+    for(let c=0;c<room.cols;c++){if(S.bench>0&&c>0&&c%S.bench===0)h+='<div></div>';h+=seatHtml(room,r*room.cols+c)}
+  }
+  const m=metrics.last;
+  const legend=Array.from({length:S.n},(_,s)=>`<span class="chip"><span class="dot d${s}"></span>${esc(lab(s))} · ${m.per[s]}</span>`).join(' ');
+  $('#view').innerHTML=`${roomTabs}<div class="tools">${tools}${paint}</div><p class="hint" style="margin:0 0 10px">${hints[S.tool]} Blocking or unblocking keeps your other changes. A new layout replaces them.</p>
+   <div class="gridwrap"><div class="front">Front · board and invigilator</div><div class="grid" style="--sw:${sw}px;grid-template-columns:${cols}">${h}</div></div>
+   <div class="row" style="margin-top:10px">${legend}</div><div class="seatpanel" id="seatPanel"></div>`;
+  renderSeatPanel();
+}
+function renderSeatPanel(){
+  const el=$('#seatPanel');if(!el)return;
+  const sel=S.sel;
+  if(!sel||sel.room!==S.active){el.innerHTML='<span class="how">Select a seat to see who sits around it.</span>';return}
+  const room=S.rooms[sel.room],i=sel.i;
+  const k=room.stu[i],st=k>=0?S.students[k]:null,pm=presentMask(room);
+  const nbs=room.nb[i].map(j=>{const t=room.stu[j]>=0?S.students[room.stu[j]]:null;return {j,set:room.sets[j],roll:t?t.roll:'',clash:pm[j]&&pm[i]&&room.sets[j]===room.sets[i]}});
+  const clashN=nbs.filter(x=>x.clash).length;
+  el.innerHTML=`<b>${seatId(room,i)}</b> · set <b>${esc(lab(room.sets[i]))}</b> · ${st?'roll <b>'+esc(st.roll)+'</b>'+(st.name?' ('+esc(st.name)+')':''):'no student'}
+   <div class="row"><span class="${clashN?'':'how'}" style="${clashN?'color:var(--danger)':'color:var(--ok)'}">${clashN?clashN+' neighbour(s) have the same set':'All '+nbs.length+' neighbours have a different set'}</span></div>
+   <div class="row">${nbs.map(x=>`<span class="chip" style="${x.clash?'border-color:var(--danger)':''}"><span class="dot d${x.set}"></span>${esc(lab(x.set))} ${esc(x.roll)}</span>`).join('')||'<span class="how">No neighbours</span>'}</div>
+   <div class="row"><span class="lbl">Change set:</span>${Array.from({length:S.n},(_,s)=>`<button data-act="setseat" data-v="${s}" class="${room.sets[i]===s?'on':''}">${esc(lab(s))}</button>`).join('')}</div>
+   <div class="row">${st?`<button data-act="absent">${S.absent.has(st.roll)?'Mark present':'Mark absent'}</button><button data-act="unseat">Remove student from seat</button>`:''}</div>`;
+}
+function roomRowsHtml(room){
+  let h='<div class="tw"><table><thead><tr><th>Row</th>';
+  for(let c=0;c<room.cols;c++)h+=`<th class="m">S${c+1}</th>`;
+  h+='<th>Stack order</th></tr></thead><tbody>';
+  for(let r=0;r<room.rows;r++){
+    h+=`<tr><td class="m">R${r+1}</td>`;
+    let stack=[];
+    for(let c=0;c<room.cols;c++){
+      const i=r*room.cols+c;
+      if(!room.avail[i]){h+='<td class="m">×</td>';stack.push('×');continue}
+      const k=room.stu[i],st=k>=0?S.students[k]:null;
+      if(S.students.length&&!st){h+=`<td class="m" style="opacity:.55"><span class="cell-s">(${esc(lab(room.sets[i]))})</span>empty</td>`;stack.push('·');continue}
+      h+=`<td class="m"><span class="cell-s">${esc(lab(room.sets[i]))}</span>${st?esc(st.roll):''}</td>`;stack.push(lab(room.sets[i]));
+    }
+    h+=`<td class="stack">${esc(stack.join(' '))}</td></tr>`;
+  }
+  return h+'</tbody></table></div>';
+}
+const natural=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true});
+function allSeated(){
+  const out=[];
+  S.rooms.forEach(room=>{for(let i=0;i<room.stu.length;i++){const k=room.stu[i];if(k>=0)out.push({st:S.students[k],room:room.name,seat:seatId(room,i),set:lab(room.sets[i])})}});
+  return out.sort((a,b)=>natural(a.st.roll,b.st.roll));
+}
+function paperRows(){
+  const out=[];
+  S.rooms.forEach(room=>{
+    const cnt=Array(S.n).fill(0);
+    for(let i=0;i<room.avail.length;i++){
+      if(!room.avail[i])continue;
+      if(S.students.length){if(room.stu[i]>=0)cnt[room.sets[i]]++}else cnt[room.sets[i]]++;
+    }
+    out.push({room:room.name,cnt});
+  });
+  return out;
+}
+function tsv(rows){return rows.map(r=>r.join('\t')).join('\n')}
+function view(kind){
+  const btn=(id,txt)=>`<button class="pri" data-act="copy" data-v="${id}" data-label="${txt}">${txt}</button>`;
+  if(kind==='sheets'){
+    return `<div class="row" style="margin-bottom:8px">${btn('sheets','Copy for Excel')}</div><p class="hint">Hand each invigilator their room. Stack papers per row in the order shown, left to right. Brackets mark empty seats that still carry a set.</p>`+
+      S.rooms.map(r=>`<div class="h3">${esc(r.name)}</div>${roomRowsHtml(r)}`).join('');
+  }
+  if(kind==='notice'){
+    const rows=allSeated();
+    return `<div class="row" style="margin-bottom:8px">${btn('notice','Copy for Excel')}</div><p class="hint">Safe to post for students. It shows the room and seat only, never the paper set.</p>
+      <div class="tw"><table><thead><tr><th>Roll</th><th>Name</th><th>Room</th><th>Seat</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="m">${esc(x.st.roll)}</td><td>${esc(x.st.name)}</td><td>${esc(x.room)}</td><td class="m">${x.seat}</td></tr>`).join('')||'<tr><td colspan="4">No students seated yet.</td></tr>'}</tbody></table></div>`;
+  }
+  if(kind==='key'){
+    const rows=allSeated();
+    return `<div class="row" style="margin-bottom:8px">${btn('key','Copy for Excel')}</div><p class="hint">Use this to mark each answer sheet against the right key. Keep it private.</p>
+      <div class="tw"><table><thead><tr><th>Roll</th><th>Name</th><th>Set</th><th>Room</th><th>Seat</th></tr></thead><tbody>${rows.map(x=>`<tr><td class="m">${esc(x.st.roll)}</td><td>${esc(x.st.name)}</td><td class="m">${esc(x.set)}</td><td>${esc(x.room)}</td><td class="m">${x.seat}</td></tr>`).join('')||'<tr><td colspan="5">No students seated yet.</td></tr>'}</tbody></table></div>`;
+  }
+  if(kind==='papers'){
+    const pr=paperRows(),f=1+S.spare/100;
+    let h=`<div class="row" style="margin-bottom:8px">${btn('papers','Copy for Excel')}</div><p class="hint">${S.students.length?'Counts are students seated per set, plus':'No student list yet, so counts use every available seat, plus'} ${S.spare}% spare, rounded up.</p><div class="tw"><table><thead><tr><th>Room</th>${Array.from({length:S.n},(_,s)=>`<th class="m">${esc(lab(s))}</th>`).join('')}<th class="m">Total</th></tr></thead><tbody>`;
+    const tot=Array(S.n).fill(0);
+    pr.forEach(x=>{const row=x.cnt.map(c=>Math.ceil(c*f));row.forEach((c,s)=>tot[s]+=c);h+=`<tr><td>${esc(x.room)}</td>${x.cnt.map(c=>`<td class="m">${c} <span class="how">(${Math.ceil(c*f)})</span></td>`).join('')}<td class="m">${row.reduce((a,b)=>a+b,0)}</td></tr>`});
+    h+=`<tr><th>All rooms (with spares)</th>${tot.map(c=>`<th class="m">${c}</th>`).join('')}<th class="m">${tot.reduce((a,b)=>a+b,0)}</th></tr></tbody></table></div><p class="hint">Bracketed figures include spares.</p>`;
+    return h;
+  }
+  return '';
+}
+function copyData(kind){
+  if(kind==='prompt')return $('#promptText').value;
+  if(kind==='sheets'){
+    const rows=[['Room','Row','Seat','Roll','Name','Set']];
+    S.rooms.forEach(room=>{for(let i=0;i<room.avail.length;i++){if(!room.avail[i])continue;const k=room.stu[i],st=k>=0?S.students[k]:null;rows.push([room.name,'R'+(((i/room.cols)|0)+1),'S'+((i%room.cols)+1),st?st.roll:'',st?st.name:'',lab(room.sets[i])])}});
+    return tsv(rows);
+  }
+  if(kind==='notice')return tsv([['Roll','Name','Room','Seat'],...allSeated().map(x=>[x.st.roll,x.st.name,x.room,x.seat])]);
+  if(kind==='key')return tsv([['Roll','Name','Set','Room','Seat'],...allSeated().map(x=>[x.st.roll,x.st.name,x.set,x.room,x.seat])]);
+  if(kind==='papers'){
+    const f=1+S.spare/100;
+    return tsv([['Room',...Array.from({length:S.n},(_,s)=>lab(s)),'Total'],...paperRows().map(x=>{const row=x.cnt.map(c=>Math.ceil(c*f));return [x.room,...row,row.reduce((a,b)=>a+b,0)]})]);
+  }
+  return '';
+}
+function renderAll(){
+  metrics.last=metrics();
+  renderBanner();renderControls();renderStats(metrics.last);renderTabs();
+  if(S.tab==='chart')renderChart();else $('#view').innerHTML=view(S.tab);
+  $('#fallback').hidden=true;
+}
+
+/* ---------- students ---------- */
+function loadStudents(text,fromSample){
+  S.students=parseStudents(text);
+  const seen=new Set(),dups=[];
+  S.students.forEach(s=>{if(seen.has(s.roll))dups.push(s.roll);seen.add(s.roll)});
+  S.dups=dups;S.absent=new Set();S.sample=!!fromSample;S.ph=false;
+  S.plan='';placeStudents();S.sel=null;S.swap=null;renderAll();
+}
+
+
+/* ---------- quick plan ---------- */
+const ALLNAME='All students';
+function classCounts(){const m=new Map();S.students.forEach(s=>{const g=s.group||ALLNAME;m.set(g,(m.get(g)||0)+1)});return m}
+function parseClasses(t){
+  const out=[];
+  t.split(/\r?\n/).forEach(l=>{const m=l.trim().match(/^(.*?)[,\t;\s]+(\d+)$/);if(m&&+m[2]>0)out.push([m[1].trim()||ALLNAME,+m[2]])});
+  return out;
+}
+function clearStudents(){
+  $('#rolls').value='';$('#classes').value='';
+  S.students=[];S.absent=new Set();S.dups=[];S.unseated=[];S.sample=false;S.ph=false;S.plan='';S.sel=null;S.swap=null;
+  S.rooms.forEach(r=>{r.stu=new Int16Array(r.rows*r.cols).fill(-1)});
+  renderAll();
+}
+function evalCand(rule,spacing){
+  let cf=0,cap=0;
+  S.rooms.forEach((room,ri)=>{
+    const av=availMask(room.rows,room.cols,room.blocked,spacing),nb=buildNbrs(room.rows,room.cols,av,rule,S.bench,S.aisle);
+    const r=bestLayout(room.rows,room.cols,av,nb,S.n,mulberry32(S.setSeed+ri),'auto',12);
+    cf+=r.cf;for(let i=0;i<av.length;i++)cap+=av[i];
+  });
+  return {cf,cap};
+}
+const RULE_TXT={sides:'left, right, front and back',king:'sides and all four diagonals',kingplus:'sides, diagonals and the next seat along the row and column'};
+function listMode(){
+  const txt=$('#rolls').value.trim();
+  if(txt&&!S.sample&&!(S.ph&&txt===S.phText))return true;
+  return S.students.length>0&&!S.sample&&!S.ph;
+}
+function syncQuick(){
+  const use=listMode(),info=$('#qpInfo');if(!info)return;
+  $('#qpManual').hidden=use;
+  if(use){const t=$('#rolls').value.trim();const n=t?t.split(/\r?\n/).filter(l=>l.trim()).length:S.students.length;
+    info.textContent='Using the student list from step 1 ('+n+' lines). To plan for other classes, press Clear students first.'}
+  else info.textContent=S.ph?'Placeholder roll numbers are in use. Paste your real list in step 1 and press Seat these students, or change the classes below.':'No student list is loaded. Load one in step 1, or type classes below (placeholder roll numbers will be used).';
+}
+function makePlan(){
+  let cls,made=false;
+  if(listMode()){
+    const t=$('#rolls').value.trim();
+    if(t){S.students=parseStudents(t);const seen=new Set(),dups=[];S.students.forEach(s=>{if(seen.has(s.roll))dups.push(s.roll);seen.add(s.roll)});S.dups=dups;S.absent=new Set();S.ph=false}
+    cls=[...classCounts()];
+  }else{
+    cls=parseClasses($('#classes').value);
+    if(!cls.length){S.plan='Load your student list in step 1, or type classes and counts first.';renderAll();return}
+    const lines=[];
+    cls.forEach(([g,c])=>{for(let k=1;k<=c;k++)lines.push(`${g===ALLNAME?'S':g}-${String(k).padStart(2,'0')},,${g===ALLNAME?'':g}`)});
+    $('#rolls').value=lines.join('\n');S.phText=$('#rolls').value.trim();S.ph=true;
+    S.students=parseStudents($('#rolls').value);S.dups=[];S.absent=new Set();made=true;
+  }
+  const N=cls.reduce((a,c)=>a+c[1],0);
+  if(!N){S.plan='The student list is empty.';renderAll();return}
+  if(S.n<2){S.plan='Choose at least 2 sets so neighbours can have different papers.';renderAll();return}
+  S.sample=false;
+  // pick the strongest rule with zero clashes that fits the room(s)
+  const cands=[['kingplus','all'],['king','all'],['kingplus','checker'],['king','checker'],['sides','all']].map(([r,sp])=>({rule:r,spacing:sp,...evalCand(r,sp)}));
+  let pick=cands.find(c=>c.cf===0&&c.cap>=N);
+  let added=0;
+  if(!pick){
+    const ok=cands.filter(c=>c.cf===0).sort((a,b)=>b.cap-a.cap);
+    pick=ok[0]||cands[cands.length-1];
+    const base=S.rooms[S.active];
+    while(pick.cap<N&&S.rooms.length<12){S.rooms.push(newRoom('Room '+(S.rooms.length+1),base.rows,base.cols));added++;pick={...pick,...evalCand(pick.rule,pick.spacing)}}
+  }
+  S.rule=pick.rule;S.spacing=pick.spacing;S.method='auto';S.seatMode='spread';S.groupApart=true;
+  $('#rule').value=S.rule;$('#spacing').value=S.spacing;$('#method').value='auto';$('#seatMode').value='spread';$('#groupApart').checked=true;
+  cmpCache={};
+  fullReplan();
+  const m=metrics.last;
+  const parts=[`<b>Plan for ${N} students</b> in ${cls.length} class${cls.length>1?'es':''} (${cls.map(([g,c])=>esc(g)+': '+c).join(', ')}) with ${S.n} sets.`,
+    `Neighbours covered: ${RULE_TXT[S.rule]}${S.spacing==='checker'?', with alternate seats left empty':''}.`,
+    `Result: ${m.conf} same-set neighbours${S.rooms.length>1||added?`, ${S.rooms.length} rooms`:''}${m.gc!==undefined&&cls.length>1?`, ${m.gc} classmates side by side`:''}.`];
+  if(S.rule==='sides')parts.push(`With ${S.n} sets, diagonal neighbours can still share a set. ${S.n<4?'Use 4 or more sets to cover diagonals.':'Leaving alternate seats empty would cover them.'}`);
+  else if(S.rule==='king'&&S.n<5&&S.spacing==='all')parts.push('Using 5 or more sets would also cover the next seat along the row and column.');
+  if(added)parts.push(`The room was too small, so ${added} more room${added>1?'s were':' was'} added.`);
+  if(made)parts.push('Placeholder roll numbers were created. Paste the real list in step 1 and press Seat these students.');
+  S.plan=parts.join(' ');
+  renderAll();
+}
+$('#makePlan').addEventListener('click',makePlan);
+
+/* ---------- events ---------- */
+function setSeatSet(room,i){
+  const g=room.sets,cnt=Array(S.n).fill(0);
+  for(let q=0;q<g.length;q++)if(g[q]>=0)cnt[g[q]]++;
+  g[i]=-1;
+  g[i]=chooseSet(g,i,room.rows,room.cols,room.nb,S.n,cnt,mulberry32(i+S.setSeed));
+}
+function copyText(t,b){
+  const done=()=>{b.textContent='Copied';setTimeout(()=>{b.textContent=b.dataset.label},1400)};
+  const fb=()=>{const a=$('#fallback');a.value=t;a.hidden=false;a.focus();a.select()};
+  try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(done).catch(fb);else fb()}catch(e){fb()}
+}
+document.addEventListener('click',e=>{
+  const seat=e.target.closest('.seat');
+  if(seat&&seat.dataset.i!==undefined){
+    const room=S.rooms[S.active],i=+seat.dataset.i,key=((i/room.cols)|0)+','+(i%room.cols);
+    if(S.tool==='block'){
+      if(room.blocked.has(key)){room.blocked.delete(key);roomLayout(room);if(room.avail[i])setSeatSet(room,i)}
+      else{room.blocked.add(key);const k=room.stu[i];room.stu[i]=-1;roomLayout(room);room.sets[i]=-1}
+      for(let q=0;q<room.avail.length;q++){if(!room.avail[q]){room.sets[q]=-1;room.stu[q]=-1}else if(room.sets[q]<0)setSeatSet(room,q)}
+      S.unseated=[];fillUnseated();cmpCache={};
+    }else if(!room.avail[i]){return}
+    else if(S.tool==='paint'){room.sets[i]=S.paint}
+    else if(S.tool==='swap'){
+      if(!S.swap)S.swap={room:S.active,i};
+      else{const a=S.swap.i,t=room.stu[a];room.stu[a]=room.stu[i];room.stu[i]=t;S.swap=null}
+    }
+    else S.sel={room:S.active,i};
+    renderAll();return;
+  }
+  const a=e.target.closest('[data-act]');if(!a)return;
+  const act=a.dataset.act,v=a.dataset.v;
+  if(act==='n'){S.n=+v;fullReplan()}
+  else if(act==='tab'){S.tab=v;renderAll()}
+  else if(act==='room'){S.active=+v;S.sel=null;S.swap=null;renderAll()}
+  else if(act==='tool'){S.tool=v;S.swap=null;renderAll()}
+  else if(act==='brush'){S.paint=+v;renderAll()}
+  else if(act==='clear')clearStudents();
+  else if(act==='copy')copyText(copyData(v),a);
+  else if(S.sel){
+    const room=S.rooms[S.sel.room],i=S.sel.i;
+    if(act==='setseat'){room.sets[i]=+v}
+    else if(act==='absent'){const st=S.students[room.stu[i]];if(st){S.absent.has(st.roll)?S.absent.delete(st.roll):S.absent.add(st.roll)}}
+    else if(act==='unseat'){room.stu[i]=-1;S.unseated=[];const seated=new Set();S.rooms.forEach(r=>r.stu.forEach(k=>{if(k>=0)seated.add(k)}));S.students.forEach((_,k)=>{if(!seated.has(k))S.unseated.push(k)})}
+    renderAll();
+  }
+});
+$('#labelMode').addEventListener('change',e=>{S.labelMode=e.target.value;renderAll()});
+$('#customLabels').addEventListener('input',e=>{S.custom=e.target.value;renderAll()});
+$('#rule').addEventListener('change',e=>{S.rule=e.target.value;cmpCache={};fullReplan()});
+$('#spacing').addEventListener('change',e=>{S.spacing=e.target.value;cmpCache={};fullReplan()});
+$('#bench').addEventListener('change',e=>{S.bench=+e.target.value;cmpCache={};fullReplan()});
+$('#aisle').addEventListener('change',e=>{S.aisle=e.target.checked;cmpCache={};fullReplan()});
+$('#method').addEventListener('change',e=>{S.method=e.target.value;fullReplan()});
+$('#setSeed').addEventListener('change',e=>{S.setSeed=Math.max(1,parseInt(e.target.value)||1);cmpCache={};fullReplan()});
+$('#newLayout').addEventListener('click',()=>{S.setSeed=1+Math.floor(Math.random()*99999);S.stuSeed=1+Math.floor(Math.random()*99999);$('#setSeed').value=S.setSeed;cmpCache={};fullReplan()});
+$('#roomName').addEventListener('input',e=>{S.rooms[S.active].name=e.target.value||'Room';renderStats(metrics.last);renderTabs();if(S.tab==='chart')renderChart()});
+function dim(id,key,max){$(id).addEventListener('change',e=>{const room=S.rooms[S.active];room[key]=Math.min(max,Math.max(1,parseInt(e.target.value)||1));room.blocked=new Set([...room.blocked].filter(k=>{const [r,c]=k.split(',').map(Number);return r<room.rows&&c<room.cols}));cmpCache={};fullReplan()})}
+dim('#rows','rows',30);dim('#cols','cols',12);
+$('#addRoom').addEventListener('click',()=>{const r=S.rooms[S.active];S.rooms.push(newRoom('Room '+(S.rooms.length+1),r.rows,r.cols));S.active=S.rooms.length-1;fullReplan()});
+$('#delRoom').addEventListener('click',()=>{if(S.rooms.length<2)return;S.rooms.splice(S.active,1);S.active=Math.max(0,S.active-1);fullReplan()});
+$('#applyStudents').addEventListener('click',()=>{S.seatMode=$('#seatMode').value;S.roomFill=$('#roomFill').value;S.groupApart=$('#groupApart').checked;loadStudents($('#rolls').value,false)});
+$('#reshuffle').addEventListener('click',()=>{S.seatMode=$('#seatMode').value;S.roomFill=$('#roomFill').value;S.groupApart=$('#groupApart').checked;S.stuSeed=1+Math.floor(Math.random()*99999);placeStudents();S.sel=null;S.swap=null;renderAll()});
+$('#rolls').addEventListener('input',()=>{if(S.sample){S.sample=false;renderBanner()}syncQuick()});
+$('#spare').addEventListener('input',e=>{S.spare=Math.max(0,Math.min(50,parseFloat(e.target.value)||0));renderAll()});
+$('#file').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;
+  const rd=new FileReader();rd.onload=()=>{$('#rolls').value=String(rd.result);S.sample=false;renderBanner()};rd.readAsText(f);
+});
+
+/* ---------- start with a working example ---------- */
+(function init(){
+  const rnd=mulberry32(5),pool=[];
+  for(let x=2301;x<=2399;x++)pool.push(x);
+  const rolls=shuffleArr(pool,rnd).slice(0,34).sort((a,b)=>a-b);
+  $('#rolls').value=rolls.join('\n');
+  S.rooms=[newRoom('Room 1',6,8)];
+  $('#setSeed').value=S.setSeed;
+  S.students=parseStudents($('#rolls').value);
+  fullReplan();
+})();
+</script>
+
+</body></html>

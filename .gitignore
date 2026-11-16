@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Testing / coverage
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# Environment files (keep the example committed)
+.env
+.env*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+firebase-debug.log
+firebase-debug.log.*
+firebase-debug.log*
+.firebase/
+ui-debug.log
+
+# Service account / credential material — never commit
+serviceAccount*.json
+*-service-account*.json
+*serviceAccountKey*.json
+.firebase-credentials.json
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Local data / exports that must not be public
+*.local.json
+mcq-exports/
